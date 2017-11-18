@@ -34,7 +34,7 @@ end
 if (int)
     flags.INT = '';
 else
-    flags.INT = '-DDLONG';
+    flags.INT = '-DLONG';
 end
 
 if (flags.COMPILE_WITH_OPENMP)

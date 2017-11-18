@@ -24,7 +24,7 @@ scs_int parse_warm_start(const mxArray *p_mex, scs_float **p, scs_int l) {
     }
 }
 
-#if !(DLONG > 0)
+#if !(LONG > 0)
 /* this memory must be freed */
 scs_int *cast_to_scs_int_arr(mwIndex *arr, scs_int len) {
     scs_int i;
@@ -299,7 +299,7 @@ void mexFunction(int nlhs, mxArray *plhs[], int nrhs, const mxArray *prhs[]) {
  * If scs_int is not long, then we explictly cast the entire
  * array to get the correct width
  */
-#if DLONG > 0
+#if LONG > 0
     A->p = (scs_int *)mxGetJc(A_mex);
     A->i = (scs_int *)mxGetIr(A_mex);
 #else
@@ -392,7 +392,7 @@ void free_mex(ScsData *d, ScsCone *k) {
             scs_free(d->c);
 #endif
         if (d->A) {
-#if !(DLONG > 0)
+#if !(LONG > 0)
             if (d->A->p)
                 scs_free(d->A->p);
             if (d->A->i)
