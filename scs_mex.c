@@ -103,8 +103,8 @@ void mexFunction(int nlhs, mxArray *plhs[], int nrhs, const mxArray *prhs[]) {
     const mwSize one[1] = {1};
     const int num_info_fields = 11;
     const char *info_fields[] = {"iter",   "status",    "pobj",      "dobj",
-                                "res_pri", "res_dual",   "res_infeas", "res_unbdd",
-                                "rel_gap", "setup_time", "solve_time"};
+                                "resPri", "resDual",   "resInfeas", "resUnbdd",
+                                "relGap", "setupTime", "solveTime"};
     mxArray *tmp;
 #if EXTRA_VERBOSE > 0
     scs_printf("SIZE OF mwSize = %i\n", (int)sizeof(mwSize));
