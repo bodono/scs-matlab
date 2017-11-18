@@ -344,33 +344,33 @@ void mexFunction(int nlhs, mxArray *plhs[], int nrhs, const mxArray *prhs[]) {
     *mxGetPr(tmp) = info.dobj;
 
     tmp = mxCreateDoubleMatrix(1, 1, mxREAL);
-    mxSetField(plhs[3], 0, "res_pri", tmp);
+    mxSetField(plhs[3], 0, "resPri", tmp);
     *mxGetPr(tmp) = info.res_pri;
 
     tmp = mxCreateDoubleMatrix(1, 1, mxREAL);
-    mxSetField(plhs[3], 0, "res_dual", tmp);
+    mxSetField(plhs[3], 0, "resDual", tmp);
     *mxGetPr(tmp) = info.res_dual;
 
     tmp = mxCreateDoubleMatrix(1, 1, mxREAL);
-    mxSetField(plhs[3], 0, "res_infeas", tmp);
+    mxSetField(plhs[3], 0, "resInfeas", tmp);
     *mxGetPr(tmp) = info.res_infeas;
 
     tmp = mxCreateDoubleMatrix(1, 1, mxREAL);
-    mxSetField(plhs[3], 0, "res_unbdd", tmp);
+    mxSetField(plhs[3], 0, "resUnbdd", tmp);
     *mxGetPr(tmp) = info.res_unbdd;
 
     tmp = mxCreateDoubleMatrix(1, 1, mxREAL);
-    mxSetField(plhs[3], 0, "rel_gap", tmp);
+    mxSetField(plhs[3], 0, "relGap", tmp);
     *mxGetPr(tmp) = info.rel_gap;
 
     /*info.time is millisecs - return value in secs */
     tmp = mxCreateDoubleMatrix(1, 1, mxREAL);
-    mxSetField(plhs[3], 0, "setup_time", tmp);
+    mxSetField(plhs[3], 0, "setupTime", tmp);
     *mxGetPr(tmp) = info.setup_time;
 
     /*info.time is millisecs - return value in secs */
     tmp = mxCreateDoubleMatrix(1, 1, mxREAL);
-    mxSetField(plhs[3], 0, "solve_time", tmp);
+    mxSetField(plhs[3], 0, "solveTime", tmp);
     *mxGetPr(tmp) = info.solve_time;
 
     free_mex(d, k);
