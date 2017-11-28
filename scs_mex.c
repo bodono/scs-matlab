@@ -25,7 +25,7 @@ scs_int parse_warm_start(const mxArray *p_mex, scs_float **p, scs_int l) {
   }
 }
 
-#if !(LONG > 0)
+#if !(DLONG > 0)
 /* this memory must be freed */
 scs_int *cast_to_scs_int_arr(mwIndex *arr, scs_int len) {
   scs_int i;
@@ -37,7 +37,7 @@ scs_int *cast_to_scs_int_arr(mwIndex *arr, scs_int len) {
 }
 #endif
 
-#if FLOAT > 0
+#if SFLOAT > 0
 /* this memory must be freed */
 scs_float *cast_to_scs_float_arr(double *arr, scs_int len) {
   scs_int i;
@@ -60,7 +60,7 @@ double *cast_to_double_arr(scs_float *arr, scs_int len) {
 
 void set_output_field(mxArray **pout, scs_float *out, scs_int len) {
   *pout = mxCreateDoubleMatrix(0, 0, mxREAL);
-#if FLOAT > 0
+#if SFLOAT > 0
   mxSetPr(*pout, cast_to_double_arr(out, len));
   scs_free(out);
 #else
@@ -162,7 +162,7 @@ void mexFunction(int nlhs, mxArray *plhs[], int nrhs, const mxArray *prhs[]) {
   settings = prhs[2];
   d->n = (scs_int) * (mxGetDimensions(c_mex));
   d->m = (scs_int) * (mxGetDimensions(b_mex));
-#if FLOAT > 0
+#if SFLOAT > 0
   d->b = castTo_scs_float_arr(mxGetPr(b_mex), d->m);
   d->c = cast_to_scs_float_arr(mxGetPr(c_mex), d->n);
 #else
@@ -311,14 +311,14 @@ void mexFunction(int nlhs, mxArray *plhs[], int nrhs, const mxArray *prhs[]) {
  * If scs_int is not long, then we explictly cast the entire
  * array to get the correct width
  */
-#if LONG > 0
+#if DLONG > 0
   A->p = (scs_int *)mxGetJc(A_mex);
   A->i = (scs_int *)mxGetIr(A_mex);
 #else
   A->p = cast_to_scs_int_arr(mxGetJc(A_mex), A->n + 1);
   A->i = cast_to_scs_int_arr(mxGetIr(A_mex), A->p[A->n]);
 #endif
-#if FLOAT > 0
+#if SFLOAT > 0
   A->x = cast_to_scs_float_arr(mxGetPr(A_mex), A->p[A->n]);
 #else
   A->x = (scs_float *)mxGetPr(A_mex);
@@ -400,7 +400,7 @@ void free_mex(ScsData *d, ScsCone *k) {
     scs_free(k->p);
   }
   if (d) {
-#if FLOAT > 0
+#if SFLOAT > 0
     if (d->b) {
       scs_free(d->b);
     }
@@ -409,7 +409,7 @@ void free_mex(ScsData *d, ScsCone *k) {
     }
 #endif
     if (d->A) {
-#if !(LONG > 0)
+#if !(DLONG > 0)
       if (d->A->p) {
         scs_free(d->A->p);
       }
@@ -417,7 +417,7 @@ void free_mex(ScsData *d, ScsCone *k) {
         scs_free(d->A->i);
       }
 #endif
-#if FLOAT > 0
+#if SFLOAT > 0
       if (d->A->x) {
         scs_free(d->A->x);
       }

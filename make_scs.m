@@ -29,12 +29,12 @@ else
 end
 
 if (float)
-    flags.LCFLAG = sprintf('-DFLOAT %s', flags.LCFLAG);
+    flags.LCFLAG = sprintf('-DSFLOAT %s', flags.LCFLAG);
 end
 if (int)
     flags.INT = '';
 else
-    flags.INT = '-DLONG';
+    flags.INT = '-DDLONG';
 end
 
 if (flags.COMPILE_WITH_OPENMP)
