@@ -75,7 +75,7 @@ Q = sparse([zeros(n) data.A' data.c;
            -data.c' -data.b' 0]);
 %}
 
-K = validateCone(K);
+K = validate_scs_cone(K);
 
 n = length(data.c);
 m = length(data.b);

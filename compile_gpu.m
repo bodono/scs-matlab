@@ -13,6 +13,6 @@ end
 if (flags.COMPILE_WITH_OPENMP)
     cmd = sprintf('mex -O %s %s %s COMPFLAGS="/openmp \\$COMPFLAGS" CFLAGS="\\$CFLAGS -fopenmp" scs/linsys/gpu/private.c %s -Iscs -Iscs/include %s %s %s -output scs_gpu',  flags.arr, flags.LCFLAG, common_scs, flags.INCS, flags.link, flags.LOCS, flags.BLASLIB);
 else
-    cmd = sprintf('mex -O %s %s %s scs/linsys/gpu/private.c %s -Iscs -Iscs/include %s %s %s -output scs_gpu',  flags.arr, flags.LCFLAG, common_scs, flags.INCS, flags.link, flags.LOCS, flags.BLASLIB);
+    cmd = sprintf('mex -O %s %s %s scs/linsys/gpu/private.c %s -Iscs -Iscs/include -Iscs/linsys %s %s %s -output scs_gpu',  flags.arr, flags.LCFLAG, common_scs, flags.INCS, flags.link, flags.LOCS, flags.BLASLIB);
 end
 eval(cmd);
