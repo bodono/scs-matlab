@@ -8,10 +8,11 @@ end
 
 amd_files = {'amd_order', 'amd_dump', 'amd_postorder', 'amd_post_tree', ...
     'amd_aat', 'amd_2', 'amd_1', 'amd_defaults', 'amd_control', ...
-    'amd_info', 'amd_valid', 'amd_global', 'amd_preprocess' } ;
+    'amd_info', 'amd_valid', 'amd_global', 'amd_preprocess', ...
+    'SuiteSparse_config'} ;
 for i = 1 : length (amd_files)
-    cmd = sprintf ('%s scs/linsys/direct/external/%s.c', cmd, amd_files {i}) ;
+    cmd = sprintf ('%s scs/linsys/direct/external/amd/%s.c', cmd, amd_files {i}) ;
 end
 
-cmd = sprintf ('%s scs/linsys/direct/external/ldl.c %s scs/linsys/direct/private.c %s %s %s -output scs_direct', cmd, common_scs, flags.link, flags.LOCS, flags.BLASLIB);
+cmd = sprintf ('%s scs/linsys/direct/external/qdldl/qdldl.c %s scs/linsys/direct/private.c %s %s %s -output scs_direct', cmd, common_scs, flags.link, flags.LOCS, flags.BLASLIB);
 eval(cmd);
