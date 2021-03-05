@@ -11,7 +11,7 @@ flags.LCFLAG = '-DMATLAB_MEX_FILE -DUSE_LAPACK -DCTRLC=1 -DCOPYAMATRIX';
 flags.INCS = '';
 flags.LOCS = '';
 
-common_scs = 'scs/src/linalg.c scs/src/cones.c scs/src/aa.c scs/src/util.c scs/src/scs.c scs/src/ctrlc.c scs/src/normalize.c scs/src/scs_version.c scs/linsys/common.c scs/src/rw.c scs_mex.c';
+common_scs = 'scs/src/linalg.c scs/src/cones.c scs/src/aa.c scs/src/util.c scs/src/scs.c scs/src/ctrlc.c scs/src/normalize.c scs/src/scs_version.c scs/linsys/amatrix.c scs/src/rw.c scs_mex.c';
 if (~isempty (strfind (computer, '64')))
     flags.arr = '-largeArrayDims';
 else
