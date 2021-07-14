@@ -33,7 +33,7 @@ classdef basic < matlab.unittest.TestCase
             testCase.data.y = y;
             testCase.data.s = s;
             [~,~,~,info] = scs_direct(testCase.data,testCase.cones,[]);
-            testCase.verifyEqual(info.status, 'Solved BAD')
+            testCase.verifyEqual(info.status, 'Solved')
             testCase.verifyEqual(info.iter, 0)
         end
    end
