@@ -1,0 +1,31 @@
+name: Build
+
+on: [push, pull_request]
+
+jobs:
+  build:
+    name: Build (${{ matrix.os }})
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest] # not working: [macos-latest, windows-latest]
+
+    runs-on: ${{ matrix.os }}
+
+    steps:
+      - uses: actions/checkout@v2
+        with:
+          submodules: 'recursive'
+
+      - uses: matlab-actions/setup-matlab@v1
+
+      - uses: matlab-actions/run-command@v1
+        with:
+          command: make_scs
+
+      - name: Test
+        uses: matlab-actions/run-tests@v1
+        with:
+          source-folder: ./
+          select-by-folder: test
+

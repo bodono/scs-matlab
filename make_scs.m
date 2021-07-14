@@ -12,7 +12,7 @@ flags.INCS = '';
 flags.LOCS = '';
 
 common_scs = 'scs/src/linalg.c scs/src/cones.c scs/src/aa.c scs/src/util.c scs/src/scs.c scs/src/ctrlc.c scs/src/normalize.c scs/src/scs_version.c scs/linsys/common.c scs/src/rw.c scs_mex.c';
-if (~isempty (strfind (computer, '64')))
+if (contains(computer, '64'))
     flags.arr = '-largeArrayDims';
 else
     flags.arr = '';
@@ -49,31 +49,7 @@ end
 % compile scs_version
 mex -O -Iscs/include scs/src/scs_version.c scs_version_mex.c -output scs_version
 
-%%
-clear data cones
-disp('Example run:');
-randn('seed',9)
-m = 9;
-n = 3;
-data.A = sparse(randn(m,n));
-data.b = randn(m,1);
-data.c = randn(n,1);
-cones.l = m;
-[x,y,s,info] = scs_indirect(data,cones,[]);
-[x,y,s,info] = scs_direct(data,cones,[]);
-
-
-if (gpu)
-    [x,y,s,info] = scs_gpu(data,cones,[]);
-end
-
-% test-warm start with solution
-disp('Warm-starting:')
-data.x = x;
-data.y = y;
-data.s = s;
-[x,y,s,info] = scs_indirect(data,cones,[]);
-
+addpath '.'
 
 disp('SUCCESSFULLY INSTALLED SCS')
 disp('(If using SCS with CVX, note that SCS only supports CVX v3.0 or later).')
