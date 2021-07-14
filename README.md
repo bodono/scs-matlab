@@ -1,4 +1,7 @@
 # scs-matlab
+===
+![Build Status](https://github.com/bodono/scs-matlab/actions/workflows/build.yml/badge.svg)
+
 Matlab interface for [SCS](https://github.com/cvxgrp/scs) 2.0.0 and higher.
 
 To install SCS in Matlab from source:
