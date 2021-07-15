@@ -1,4 +1,4 @@
-classdef basic < matlab.unittest.TestCase
+classdef quad_box < matlab.unittest.TestCase
     
     properties
         data
@@ -13,12 +13,14 @@ classdef basic < matlab.unittest.TestCase
         function setup_problem(testCase)
             % Create Problem
             rng(1234)
-            m = 9;
-            n = 3;
-            testCase.data.A = sparse(randn(m,n));
-            testCase.data.b = randn(m,1);
-            testCase.data.c = randn(n,1);
-            testCase.cones.l = m;
+            P = randn(3, 3);
+            P = P * P';
+            testCase.data.A = sparse([zeros(1,3);randn(3,3)]);
+            testCase.data.P = sparse(P);
+            testCase.data.b = [1., 0., 0. 0.]';
+            testCase.data.c = -ones(3,1);
+            testCase.cones.bl = [0., 1., -2.];
+            testCase.cones.bu = [1., 2., -1.];
         end
     end
 

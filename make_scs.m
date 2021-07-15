@@ -7,11 +7,11 @@ flags.COMPILE_WITH_OPENMP = false;
 
 flags.BLASLIB = '-lmwblas -lmwlapack';
 % MATLAB_MEX_FILE env variable sets blasint to ptrdiff_t
-flags.LCFLAG = '-DMATLAB_MEX_FILE -DUSE_LAPACK -DCTRLC=1 -DCOPYAMATRIX';
+flags.LCFLAG = '-DMATLAB_MEX_FILE -DUSE_LAPACK -DCTRLC=1 -DCOPYAMATRIX -DGPU_TRANSPOSE_MAT -DVERBOSITY=0';
 flags.INCS = '';
 flags.LOCS = '';
 
-common_scs = 'scs/src/linalg.c scs/src/cones.c scs/src/aa.c scs/src/util.c scs/src/scs.c scs/src/ctrlc.c scs/src/normalize.c scs/src/scs_version.c scs/linsys/amatrix.c scs/src/rw.c scs_mex.c';
+common_scs = 'scs/src/linalg.c scs/src/cones.c scs/src/aa.c scs/src/util.c scs/src/scs.c scs/src/ctrlc.c scs/src/normalize.c scs/src/scs_version.c scs/linsys/amatrix.c scs/linsys/csparse.c scs/src/rw.c scs_mex.c';
 if (contains(computer, '64'))
     flags.arr = '-largeArrayDims';
 else
@@ -47,7 +47,7 @@ if (gpu)
 end
 
 % compile scs_version
-mex -O -Iscs/include scs/src/scs_version.c scs_version_mex.c -output scs_version
+mex -v -O -Iscs/include scs/src/scs_version.c scs_version_mex.c -output scs_version
 
 addpath '.'
 
