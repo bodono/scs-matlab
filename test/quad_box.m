@@ -37,7 +37,7 @@ classdef quad_box < matlab.unittest.TestCase
             testCase.data.s = s;
             [~,~,~,info] = scs(testCase.data,testCase.cones,pars);
             testCase.verifyEqual(info.status, 'solved')
-            testCase.verifyEqual(info.iter, 0)
+            testCase.verifyLessThanOrEqual(info.iter, 25)
         end
     end
 end
