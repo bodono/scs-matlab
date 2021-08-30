@@ -6,7 +6,7 @@
 #include "scs.h"
 #include "util.h"
 
-void free_mex(ScsData *d, ScsCone *k);
+void free_mex(ScsData *d, ScsCone *k, ScsSettings *stgs);
 
 scs_int parse_warm_start(const mxArray *p_mex, scs_float **p, scs_int l) {
     *p = (scs_float *)scs_calloc(
@@ -75,6 +75,7 @@ void mexFunction(int nlhs, mxArray *plhs[], int nrhs, const mxArray *prhs[]) {
     scs_int i, ns, status, nbl, nbu;
     ScsData *d;
     ScsCone *k;
+    ScsSettings *stgs;
     ScsSolution sol = {0};
     ScsInfo info;
     ScsMatrix *A;
@@ -87,6 +88,7 @@ void mexFunction(int nlhs, mxArray *plhs[], int nrhs, const mxArray *prhs[]) {
     const mxArray *c_mex;
     
     const mxArray *kf;
+    const mxArray *kz;
     const mxArray *kl;
     const mxArray *kbl;
     const mxArray *kbu;
@@ -129,7 +131,7 @@ void mexFunction(int nlhs, mxArray *plhs[], int nrhs, const mxArray *prhs[]) {
         mexErrMsgTxt("scs returns up to 4 output arguments only.");
     }
     d = (ScsData *)mxMalloc(sizeof(ScsData));
-    d->stgs = (ScsSettings *)mxMalloc(sizeof(ScsSettings));
+    stgs = (ScsSettings *)mxMalloc(sizeof(ScsSettings));
     k = (ScsCone *)mxMalloc(sizeof(ScsCone));
     data = prhs[0];
     
@@ -183,65 +185,78 @@ void mexFunction(int nlhs, mxArray *plhs[], int nrhs, const mxArray *prhs[]) {
     d->b = (scs_float *)mxGetPr(b_mex);
     d->c = (scs_float *)mxGetPr(c_mex);
 #endif
-    SCS(set_default_settings)(d->stgs);
+    SCS(set_default_settings)(stgs);
     
     /* settings */
     tmp = mxGetField(settings, 0, "alpha");
     if (tmp != SCS_NULL) {
-        d->stgs->alpha = (scs_float)*mxGetPr(tmp);
+        stgs->alpha = (scs_float)*mxGetPr(tmp);
     }
     
     tmp = mxGetField(settings, 0, "rho_x");
     if (tmp != SCS_NULL) {
-        d->stgs->rho_x = (scs_float)*mxGetPr(tmp);
+        stgs->rho_x = (scs_float)*mxGetPr(tmp);
     }
     
     tmp = mxGetField(settings, 0, "max_iters");
     if (tmp != SCS_NULL) {
-        d->stgs->max_iters = (scs_int)*mxGetPr(tmp);
+        stgs->max_iters = (scs_int)*mxGetPr(tmp);
     }
     
     tmp = mxGetField(settings, 0, "scale");
     if (tmp != SCS_NULL) {
-        d->stgs->scale = (scs_float)*mxGetPr(tmp);
+        stgs->init_scale = (scs_float)*mxGetPr(tmp);
     }
     
     tmp = mxGetField(settings, 0, "eps_abs");
     if (tmp != SCS_NULL) {
-        d->stgs->eps_abs = (scs_float)*mxGetPr(tmp);
+        stgs->eps_abs = (scs_float)*mxGetPr(tmp);
     }
     
     tmp = mxGetField(settings, 0, "eps_rel");
     if (tmp != SCS_NULL) {
-        d->stgs->eps_rel = (scs_float)*mxGetPr(tmp);
+        stgs->eps_rel = (scs_float)*mxGetPr(tmp);
     }
     
     tmp = mxGetField(settings, 0, "verbose");
     if (tmp != SCS_NULL) {
-        d->stgs->verbose = (scs_int)*mxGetPr(tmp);
+        stgs->verbose = (scs_int)*mxGetPr(tmp);
     }
     
     tmp = mxGetField(settings, 0, "normalize");
     if (tmp != SCS_NULL) {
-        d->stgs->normalize = (scs_int)*mxGetPr(tmp);
+        stgs->normalize = (scs_int)*mxGetPr(tmp);
     }
     
     tmp = mxGetField(settings, 0, "acceleration_lookback");
     if (tmp != SCS_NULL) {
-        d->stgs->acceleration_lookback = (scs_int)*mxGetPr(tmp);
+        stgs->acceleration_lookback = (scs_int)*mxGetPr(tmp);
     }
     
     tmp = mxGetField(settings, 0, "acceleration_interval");
     if (tmp != SCS_NULL) {
-        d->stgs->acceleration_interval = (scs_int)*mxGetPr(tmp);
+        stgs->acceleration_interval = (scs_int)*mxGetPr(tmp);
     }
     
     /* cones */
+    
+    /* TODO rm this */
     kf = mxGetField(cone, 0, "f");
     if (kf && !mxIsEmpty(kf)) {
-        k->f = (scs_int)*mxGetPr(kf);
+        scs_printf(
+           "SCS deprecation warning: The 'f' field in the cone struct \n"
+           "has been replaced by 'z' to better reflect the Zero cone. \n"
+           "Please replace usage of 'f' with 'z'. If both 'f' and 'z' \n"
+           "are set then we sum the two fields to get the final zero \n"
+           "cone size.\n");
+        k->z = (scs_int)*mxGetPr(kf);
     } else {
-        k->f = 0;
+        k->z = 0;
+    }
+    
+    kz = mxGetField(cone, 0, "z");
+    if (kz && !mxIsEmpty(kz)) {
+        k->z += (scs_int)*mxGetPr(kz); /* TODO rm this */
     }
     
     kl = mxGetField(cone, 0, "l");
@@ -403,14 +418,14 @@ void mexFunction(int nlhs, mxArray *plhs[], int nrhs, const mxArray *prhs[]) {
     d->P = P;
     /* warm-start inputs, allocates sol->x, ->y, ->s even if warm start not used
      */
-    d->stgs->warm_start =
+    stgs->warm_start =
             parse_warm_start((mxArray *)mxGetField(data, 0, "x"), &(sol.x), d->n);
-    d->stgs->warm_start |=
+    stgs->warm_start |=
             parse_warm_start((mxArray *)mxGetField(data, 0, "y"), &(sol.y), d->m);
-    d->stgs->warm_start |=
+    stgs->warm_start |=
             parse_warm_start((mxArray *)mxGetField(data, 0, "s"), &(sol.s), d->m);
     
-    status = scs(d, k, &sol, &info);
+    status = scs(d, k, stgs, &sol, &info);
     
     set_output_field(&plhs[0], sol.x, d->n);
     set_output_field(&plhs[1], sol.y, d->m);
@@ -475,11 +490,11 @@ void mexFunction(int nlhs, mxArray *plhs[], int nrhs, const mxArray *prhs[]) {
     mxSetField(plhs[3], 0, "solveTime", tmp);
     *mxGetPr(tmp) = info.solve_time;
     
-    free_mex(d, k);
+    free_mex(d, k, stgs);
     return;
 }
 
-void free_mex(ScsData *d, ScsCone *k) {
+void free_mex(ScsData *d, ScsCone *k, ScsSettings *stgs) {
     if (k) {
         if (k->q) {
             scs_free(k->q);
@@ -496,8 +511,11 @@ void free_mex(ScsData *d, ScsCone *k) {
         if (k->p) {
             scs_free(k->p);
         }
+        scs_free(k);
     }
-    scs_free(k);
+    if (stgs) {
+        scs_free(stgs);
+    }
     if (d) {
 #if SFLOAT > 0   /* only free if copies, which is only when flags set */
         if (d->b) {
@@ -538,9 +556,6 @@ void free_mex(ScsData *d, ScsCone *k) {
             }
 #endif
             scs_free(d->P);
-        }
-        if (d->stgs) {
-            scs_free(d->stgs);
         }
         scs_free(d);
     }
