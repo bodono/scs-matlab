@@ -72,7 +72,7 @@ void set_output_field(mxArray **pout, scs_float *out, scs_int len) {
 
 void mexFunction(int nlhs, mxArray *plhs[], int nrhs, const mxArray *prhs[]) {
     /* matlab usage: [x,y,s,info] = scs(data,cone,settings); */
-    scs_int i, ns, status, nbl, nbu;
+    scs_int i, ns, status, nbl, nbu, blen;
     ScsData *d;
     ScsCone *k;
     ScsSettings *stgs;
@@ -299,17 +299,18 @@ void mexFunction(int nlhs, mxArray *plhs[], int nrhs, const mxArray *prhs[]) {
                 mexErrMsgTxt("bl,bu cone entries not the same size.");
             }
         }
-        k->bsize = (scs_int)bu_dims[0];
+        blen = (scs_int)bu_dims[0];
         if (nbl > 1 && bu_dims[0] == 1) {
-            k->bsize = (scs_int)bu_dims[1];
+            blen = (scs_int)bu_dims[1];
         }
-        k->bu = (scs_float *)mxMalloc(sizeof(scs_int) * k->bsize);
-        k->bl = (scs_float *)mxMalloc(sizeof(scs_int) * k->bsize);
+        k->bu = (scs_float *)mxMalloc(sizeof(scs_int) * blen);
+        k->bl = (scs_float *)mxMalloc(sizeof(scs_int) * blen);
         
-        for (i = 0; i < k->bsize; i++) {
+        for (i = 0; i < blen; i++) {
             k->bl[i] = (scs_float)bl_mex[i];
             k->bu[i] = (scs_float)bu_mex[i];
         }
+        k->bsize = blen + 1; /* bsize is total length of cone (t,s) */
     } else {
         k->bsize = 0;
         k->bl = SCS_NULL;
