@@ -205,7 +205,7 @@ void mexFunction(int nlhs, mxArray *plhs[], int nrhs, const mxArray *prhs[]) {
     
     tmp = mxGetField(settings, 0, "scale");
     if (tmp != SCS_NULL) {
-        stgs->init_scale = (scs_float)*mxGetPr(tmp);
+        stgs->scale = (scs_float)*mxGetPr(tmp);
     }
     
     tmp = mxGetField(settings, 0, "eps_abs");
