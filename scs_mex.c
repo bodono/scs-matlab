@@ -80,13 +80,13 @@ void mexFunction(int nlhs, mxArray *plhs[], int nrhs, const mxArray *prhs[]) {
     ScsInfo info;
     ScsMatrix *A;
     ScsMatrix *P = SCS_NULL;
-    
+
     const mxArray *data;
     const mxArray *A_mex;
     const mxArray *P_mex;
     const mxArray *b_mex;
     const mxArray *c_mex;
-    
+
     const mxArray *kf;
     const mxArray *kz;
     const mxArray *kl;
@@ -107,21 +107,22 @@ void mexFunction(int nlhs, mxArray *plhs[], int nrhs, const mxArray *prhs[]) {
     const size_t *q_dims;
     const size_t *s_dims;
     const size_t *p_dims;
-    
+
     const mxArray *cone;
     const mxArray *settings;
-    
+
     const mwSize one[1] = {1};
-    const int num_info_fields = 14;
+    const int num_info_fields = 16;
     const char *info_fields[] = {"iter", "status", "pobj", "dobj",
-    "resPri", "resDual", "resInfeas", "resUnbddA", "scale", "statusVal",
-    "resUnbddP", "gap", "setupTime", "solveTime"};
+    "res_pri", "res_dual", "res_infeas", "res_unbdd_a", "scale", "status_val",
+    "res_unbdd_p", "gap", "setup_time", "solve_time", "scale_updates",
+    "comp_slack"};
     mxArray *tmp;
 #if VERBOSITY > 0
     scs_printf("SIZE OF mwSize = %i\n", (int)sizeof(mwSize));
     scs_printf("SIZE OF mwIndex = %i\n", (int)sizeof(mwIndex));
 #endif
-    
+
     if (nrhs != 3) {
         mexErrMsgTxt(
                 "Three arguments are required in this order: data struct, "
@@ -134,7 +135,7 @@ void mexFunction(int nlhs, mxArray *plhs[], int nrhs, const mxArray *prhs[]) {
     stgs = (ScsSettings *)mxMalloc(sizeof(ScsSettings));
     k = (ScsCone *)mxMalloc(sizeof(ScsCone));
     data = prhs[0];
-    
+
     A_mex = (mxArray *)mxGetField(data, 0, "A");
     if (A_mex == SCS_NULL) {
         scs_free(d);
@@ -186,60 +187,60 @@ void mexFunction(int nlhs, mxArray *plhs[], int nrhs, const mxArray *prhs[]) {
     d->c = (scs_float *)mxGetPr(c_mex);
 #endif
     SCS(set_default_settings)(stgs);
-    
+
     /* settings */
     tmp = mxGetField(settings, 0, "alpha");
     if (tmp != SCS_NULL) {
         stgs->alpha = (scs_float)*mxGetPr(tmp);
     }
-    
+
     tmp = mxGetField(settings, 0, "rho_x");
     if (tmp != SCS_NULL) {
         stgs->rho_x = (scs_float)*mxGetPr(tmp);
     }
-    
+
     tmp = mxGetField(settings, 0, "max_iters");
     if (tmp != SCS_NULL) {
         stgs->max_iters = (scs_int)*mxGetPr(tmp);
     }
-    
+
     tmp = mxGetField(settings, 0, "scale");
     if (tmp != SCS_NULL) {
         stgs->scale = (scs_float)*mxGetPr(tmp);
     }
-    
+
     tmp = mxGetField(settings, 0, "eps_abs");
     if (tmp != SCS_NULL) {
         stgs->eps_abs = (scs_float)*mxGetPr(tmp);
     }
-    
+
     tmp = mxGetField(settings, 0, "eps_rel");
     if (tmp != SCS_NULL) {
         stgs->eps_rel = (scs_float)*mxGetPr(tmp);
     }
-    
+
     tmp = mxGetField(settings, 0, "verbose");
     if (tmp != SCS_NULL) {
         stgs->verbose = (scs_int)*mxGetPr(tmp);
     }
-    
+
     tmp = mxGetField(settings, 0, "normalize");
     if (tmp != SCS_NULL) {
         stgs->normalize = (scs_int)*mxGetPr(tmp);
     }
-    
+
     tmp = mxGetField(settings, 0, "acceleration_lookback");
     if (tmp != SCS_NULL) {
         stgs->acceleration_lookback = (scs_int)*mxGetPr(tmp);
     }
-    
+
     tmp = mxGetField(settings, 0, "acceleration_interval");
     if (tmp != SCS_NULL) {
         stgs->acceleration_interval = (scs_int)*mxGetPr(tmp);
     }
-    
+
     /* cones */
-    
+
     /* TODO rm this */
     kf = mxGetField(cone, 0, "f");
     if (kf && !mxIsEmpty(kf)) {
@@ -253,45 +254,45 @@ void mexFunction(int nlhs, mxArray *plhs[], int nrhs, const mxArray *prhs[]) {
     } else {
         k->z = 0;
     }
-    
+
     kz = mxGetField(cone, 0, "z");
     if (kz && !mxIsEmpty(kz)) {
         k->z += (scs_int)*mxGetPr(kz); /* TODO rm this */
     }
-    
+
     kl = mxGetField(cone, 0, "l");
     if (kl && !mxIsEmpty(kl)) {
         k->l = (scs_int)*mxGetPr(kl);
     } else {
         k->l = 0;
     }
-    
+
     kep = mxGetField(cone, 0, "ep");
     if (kep && !mxIsEmpty(kep)) {
         k->ep = (scs_int)*mxGetPr(kep);
     } else {
         k->ep = 0;
     }
-    
+
     ked = mxGetField(cone, 0, "ed");
     if (ked && !mxIsEmpty(ked)) {
         k->ed = (scs_int)*mxGetPr(ked);
     } else {
         k->ed = 0;
     }
-    
+
     kbu = mxGetField(cone, 0, "bu");
     kbl = mxGetField(cone, 0, "bl");
     if (kbl && kbu && !mxIsEmpty(kbl) && !mxIsEmpty(kbu)) {
         bl_mex = mxGetPr(kbl);
         bu_mex = mxGetPr(kbu);
-        
+
         nbl = (scs_int)mxGetNumberOfDimensions(kbl);
         nbu = (scs_int)mxGetNumberOfDimensions(kbu);
         if (nbl != nbu) {
             mexErrMsgTxt("bl,bu cone entries not the same size.");
         }
-        
+
         bl_dims = mxGetDimensions(kbl);
         bu_dims = mxGetDimensions(kbu);
         for (i = 0; i < nbu; i++) {
@@ -305,7 +306,7 @@ void mexFunction(int nlhs, mxArray *plhs[], int nrhs, const mxArray *prhs[]) {
         }
         k->bu = (scs_float *)mxMalloc(sizeof(scs_int) * blen);
         k->bl = (scs_float *)mxMalloc(sizeof(scs_int) * blen);
-        
+
         for (i = 0; i < blen; i++) {
             k->bl[i] = (scs_float)bl_mex[i];
             k->bu[i] = (scs_float)bu_mex[i];
@@ -316,7 +317,7 @@ void mexFunction(int nlhs, mxArray *plhs[], int nrhs, const mxArray *prhs[]) {
         k->bl = SCS_NULL;
         k->bu = SCS_NULL;
     }
-    
+
     kq = mxGetField(cone, 0, "q");
     if (kq && !mxIsEmpty(kq)) {
         q_mex = mxGetPr(kq);
@@ -334,7 +335,7 @@ void mexFunction(int nlhs, mxArray *plhs[], int nrhs, const mxArray *prhs[]) {
         k->qsize = 0;
         k->q = SCS_NULL;
     }
-    
+
     ks = mxGetField(cone, 0, "s");
     if (ks && !mxIsEmpty(ks)) {
         s_mex = mxGetPr(ks);
@@ -352,7 +353,7 @@ void mexFunction(int nlhs, mxArray *plhs[], int nrhs, const mxArray *prhs[]) {
         k->ssize = 0;
         k->s = SCS_NULL;
     }
-    
+
     kp = mxGetField(cone, 0, "p");
     if (kp && !mxIsEmpty(kp)) {
         p_mex = mxGetPr(kp);
@@ -370,17 +371,17 @@ void mexFunction(int nlhs, mxArray *plhs[], int nrhs, const mxArray *prhs[]) {
         k->psize = 0;
         k->p = SCS_NULL;
     }
-    
+
     A = (ScsMatrix *)scs_malloc(sizeof(ScsMatrix));
     A->n = d->n;
     A->m = d->m;
-    
+
     if (P_mex) {
         P = (ScsMatrix *)scs_malloc(sizeof(ScsMatrix));
         P->n = d->n;
         P->m = d->n;
     }
-    
+
     /* TODO:
      * these return (mwIndex *), equivalent to (size_t *)
      * casting as (scs_int *), when scs_int = long seems to work
@@ -425,72 +426,80 @@ void mexFunction(int nlhs, mxArray *plhs[], int nrhs, const mxArray *prhs[]) {
             parse_warm_start((mxArray *)mxGetField(data, 0, "y"), &(sol.y), d->m);
     stgs->warm_start |=
             parse_warm_start((mxArray *)mxGetField(data, 0, "s"), &(sol.s), d->m);
-    
+
     status = scs(d, k, stgs, &sol, &info);
-    
+
     set_output_field(&plhs[0], sol.x, d->n);
     set_output_field(&plhs[1], sol.y, d->m);
     set_output_field(&plhs[2], sol.s, d->m);
-    
+
     plhs[3] = mxCreateStructArray(1, one, num_info_fields, info_fields);
-    
+
     /* if you add/remove fields here update the info_fields above */
     mxSetField(plhs[3], 0, "status", mxCreateString(info.status));
-    
+
     tmp = mxCreateDoubleMatrix(1, 1, mxREAL);
     mxSetField(plhs[3], 0, "iter", tmp);
     *mxGetPr(tmp) = (scs_float)info.iter;
-    
+
     tmp = mxCreateDoubleMatrix(1, 1, mxREAL);
-    mxSetField(plhs[3], 0, "statusVal", tmp);
+    mxSetField(plhs[3], 0, "scale_updates", tmp);
+    *mxGetPr(tmp) = (scs_float)info.scale_updates;
+
+    tmp = mxCreateDoubleMatrix(1, 1, mxREAL);
+    mxSetField(plhs[3], 0, "status_val", tmp);
     *mxGetPr(tmp) = (scs_float)info.status_val;
-    
+
     tmp = mxCreateDoubleMatrix(1, 1, mxREAL);
     mxSetField(plhs[3], 0, "pobj", tmp);
     *mxGetPr(tmp) = info.pobj;
-    
+
     tmp = mxCreateDoubleMatrix(1, 1, mxREAL);
     mxSetField(plhs[3], 0, "dobj", tmp);
     *mxGetPr(tmp) = info.dobj;
-    
+
     tmp = mxCreateDoubleMatrix(1, 1, mxREAL);
-    mxSetField(plhs[3], 0, "resPri", tmp);
+    mxSetField(plhs[3], 0, "res_pri", tmp);
     *mxGetPr(tmp) = info.res_pri;
-    
+
     tmp = mxCreateDoubleMatrix(1, 1, mxREAL);
-    mxSetField(plhs[3], 0, "resDual", tmp);
+    mxSetField(plhs[3], 0, "res_dual", tmp);
     *mxGetPr(tmp) = info.res_dual;
-    
+
     tmp = mxCreateDoubleMatrix(1, 1, mxREAL);
-    mxSetField(plhs[3], 0, "resInfeas", tmp);
+    mxSetField(plhs[3], 0, "res_infeas", tmp);
     *mxGetPr(tmp) = info.res_infeas;
-    
+
     tmp = mxCreateDoubleMatrix(1, 1, mxREAL);
-    mxSetField(plhs[3], 0, "resUnbddA", tmp);
+    mxSetField(plhs[3], 0, "res_unbdd_a", tmp);
     *mxGetPr(tmp) = info.res_unbdd_a;
-    
+
     tmp = mxCreateDoubleMatrix(1, 1, mxREAL);
-    mxSetField(plhs[3], 0, "resUnbddP", tmp);
+    mxSetField(plhs[3], 0, "res_unbdd_p", tmp);
     *mxGetPr(tmp) = info.res_unbdd_p;
-    
+
+    tmp = mxCreateDoubleMatrix(1, 1, mxREAL);
+    mxSetField(plhs[3], 0, "comp_slack", tmp);
+    *mxGetPr(tmp) = info.comp_slack;
+
     tmp = mxCreateDoubleMatrix(1, 1, mxREAL);
     mxSetField(plhs[3], 0, "gap", tmp);
     *mxGetPr(tmp) = info.gap;
-    
+
     tmp = mxCreateDoubleMatrix(1, 1, mxREAL);
     mxSetField(plhs[3], 0, "scale", tmp);
     *mxGetPr(tmp) = info.scale;
-    
+
     /*info.time is millisecs - return value in secs */
     tmp = mxCreateDoubleMatrix(1, 1, mxREAL);
-    mxSetField(plhs[3], 0, "setupTime", tmp);
+    mxSetField(plhs[3], 0, "setup_time", tmp);
     *mxGetPr(tmp) = info.setup_time;
-    
+
     /*info.time is millisecs - return value in secs */
     tmp = mxCreateDoubleMatrix(1, 1, mxREAL);
-    mxSetField(plhs[3], 0, "solveTime", tmp);
+    mxSetField(plhs[3], 0, "solve_time", tmp);
     *mxGetPr(tmp) = info.solve_time;
-    
+
     free_mex(d, k, stgs);
     return;
 }
