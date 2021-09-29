@@ -1,5 +1,5 @@
 function compile_direct(flags, common_scs)
-
+% compile direct
 cmd = sprintf('mex -O -v %s %s %s %s COMPFLAGS="$COMPFLAGS %s" CFLAGS="$CFLAGS %s" -Iscs -Iscs/linsys -Iscs/include', flags.arr, flags.LCFLAG, flags.INCS, flags.INT, flags.COMPFLAGS, flags.CFLAGS);
 
 amd_files = {'amd_order', 'amd_dump', 'amd_postorder', 'amd_post_tree', ...

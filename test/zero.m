@@ -1,4 +1,4 @@
-classdef basic < matlab.unittest.TestCase
+classdef zero < matlab.unittest.TestCase
     
     properties
         data
@@ -18,24 +18,16 @@ classdef basic < matlab.unittest.TestCase
             testCase.data.A = sparse(randn(m,n));
             testCase.data.b = randn(m,1);
             testCase.data.c = randn(n,1);
-            testCase.cones.l = m;
+            testCase.cones.z = m;
         end
     end
 
     methods (Test)
         function test_random(testCase, use_indirect)
             pars.use_indirect = use_indirect;
-            pars.acceleration_lookback = 10;
-            [x,y,s,info] = scs(testCase.data,testCase.cones,pars);
-            testCase.verifyEqual(info.status, 'solved')
-            
-            % warm-start test
-            testCase.data.x = x;
-            testCase.data.y = y;
-            testCase.data.s = s;
+            pars.acceleration_lookback = 0;
             [~,~,~,info] = scs(testCase.data,testCase.cones,pars);
-            testCase.verifyEqual(info.status, 'solved')
-            testCase.verifyLessThanOrEqual(info.iter, 25)
+            testCase.verifyEqual(info.status, 'infeasible')
         end
     end
 end

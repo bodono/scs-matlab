@@ -10,5 +10,5 @@ else
 end
 
 % compile gpu
-cmd = sprintf('mex -O %s %s %s COMPFLAGS="$COMPFLAGS %s" CFLAGS="$CFLAGS %s" scs/linsys/gpu/indirect/private.c %s -Iscs -Iscs/linsys -Iscs/include %s %s %s -output scs_gpu',  flags.arr, flags.LCFLAG, common_scs, flags.COMPFLAGS, flags.CFLAGS, flags.INCS, flags.link, flags.LOCS, flags.BLASLIB);
+cmd = sprintf('mex -O -v %s %s %s COMPFLAGS="$COMPFLAGS %s" CFLAGS="$CFLAGS %s" scs/linsys/gpu/indirect/private.c %s -Iscs -Iscs/linsys -Iscs/include %s %s %s -output scs_gpu',  flags.arr, flags.LCFLAG, common_scs, flags.COMPFLAGS, flags.CFLAGS, flags.INCS, flags.link, flags.LOCS, flags.BLASLIB);
 eval(cmd);
