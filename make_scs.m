@@ -8,7 +8,7 @@ use_open_mp = false;
 
 flags.BLASLIB = '-lmwblas -lmwlapack';
 % MATLAB_MEX_FILE env variable sets blasint to ptrdiff_t
-flags.LCFLAG = '-DMATLAB_MEX_FILE -DUSE_LAPACK -DCTRLC=1 -DVALIDATE=1 -DCOPYAMATRIX -DGPU_TRANSPOSE_MAT -DVERBOSITY=0';
+flags.LCFLAG = '-DMATLAB_MEX_FILE -DUSE_LAPACK -DCTRLC=1 -DCOPYAMATRIX -DGPU_TRANSPOSE_MAT -DVERBOSITY=0';
 flags.INCS = '';
 flags.LOCS = '';
 
