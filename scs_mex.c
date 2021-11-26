@@ -219,6 +219,11 @@ void mexFunction(int nlhs, mxArray *plhs[], int nrhs, const mxArray *prhs[]) {
         stgs->eps_rel = (scs_float)*mxGetPr(tmp);
     }
 
+    tmp = mxGetField(settings, 0, "eps_infeas");
+    if (tmp != SCS_NULL) {
+        stgs->eps_infeas = (scs_float)*mxGetPr(tmp);
+    }
+
     tmp = mxGetField(settings, 0, "verbose");
     if (tmp != SCS_NULL) {
         stgs->verbose = (scs_int)*mxGetPr(tmp);
