@@ -26,16 +26,17 @@ classdef string_params < matlab.unittest.TestCase
         function test_random(testCase, use_indirect)
             pars.use_indirect = use_indirect;
             pars.acceleration_lookback = 10;
+            % test string parameters
             pars.write_data_filename = sprintf('data_dump_indirect_%d', use_indirect);
             pars.log_csv_filename = sprintf('log_indirect_%d.csv', use_indirect);
-            % test other params added
+            % test other parameters added at the same time
             pars.time_limit_secs = 11.0;
-            pars.adaptive_scale = false;
+            pars.adaptive_scale = true;
             [~,~,~,info] = scs(testCase.data,testCase.cones,pars);
             testCase.verifyEqual(info.status, 'solved')
 
             pars.time_limit_secs = 0.000001;
-            pars.adaptive_scale = true;
+            pars.adaptive_scale = false;
             [~,~,~,info] = scs(testCase.data,testCase.cones,pars);
             testCase.verifyEqual(info.status, 'solved (inaccurate - reached time_limit_secs)')
         end

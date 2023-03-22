@@ -255,11 +255,13 @@ void mexFunction(int nlhs, mxArray *plhs[], int nrhs, const mxArray *prhs[]) {
 
   tmp = mxGetField(settings, 0, "write_data_filename");
   if (tmp != SCS_NULL) {
+    /* need to free this later */
     stgs->write_data_filename = mxArrayToString(tmp);
   }
 
   tmp = mxGetField(settings, 0, "log_csv_filename");
   if (tmp != SCS_NULL) {
+    /* need to free this later */
     stgs->log_csv_filename = mxArrayToString(tmp);
   }
 
