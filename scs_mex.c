@@ -79,8 +79,6 @@ void mexFunction(int nlhs, mxArray *plhs[], int nrhs, const mxArray *prhs[]) {
   ScsInfo info;
   ScsMatrix *A;
   ScsMatrix *P = SCS_NULL;
-  char *buf;
-  mwSize buflen;
 
   const mxArray *data;
   const mxArray *A_mex;
