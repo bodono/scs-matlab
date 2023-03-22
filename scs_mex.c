@@ -257,30 +257,12 @@ void mexFunction(int nlhs, mxArray *plhs[], int nrhs, const mxArray *prhs[]) {
 
   tmp = mxGetField(settings, 0, "write_data_filename");
   if (tmp != SCS_NULL) {
-    buflen = mxGetNumberOfElements(tmp) + 1;
-    buf = (char *)scs_calloc(buflen, sizeof(char));
-    /* Copy the string data from tmp and place it into buf. */
-    if (mxGetString(tmp, buf, buflen) != 0) {
-      mexErrMsgIdAndTxt("MATLAB:explore:invalidStringArray",
-                        "Could not convert string data.");
-      scs_free(buf);
-    } else {
-      stgs->write_data_filename = buf;
-    }
+    stgs->write_data_filename = mxArrayToString(tmp);
   }
 
   tmp = mxGetField(settings, 0, "log_csv_filename");
   if (tmp != SCS_NULL) {
-    buflen = mxGetNumberOfElements(tmp) + 1;
-    buf = (char *)scs_calloc(buflen, sizeof(char));
-    /* Copy the string data from tmp and place it into buf. */
-    if (mxGetString(tmp, buf, buflen) != 0) {
-      mexErrMsgIdAndTxt("MATLAB:explore:invalidStringArray",
-                        "Could not convert string data.");
-      scs_free(buf);
-    } else {
-      stgs->log_csv_filename = buf;
-    }
+    stgs->log_csv_filename = mxArrayToString(tmp);
   }
 
   /* cones */
