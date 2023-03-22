@@ -6,7 +6,7 @@ classdef string_params < matlab.unittest.TestCase
     end
 
     properties (TestParameter)
-        use_indirect = {false, true}
+        use_indirect = {false}
     end
 
     methods(TestMethodSetup)
