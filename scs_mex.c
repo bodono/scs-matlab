@@ -262,7 +262,7 @@ void mexFunction(int nlhs, mxArray *plhs[], int nrhs, const mxArray *prhs[]) {
     if (mxGetString(tmp, buf, buflen) != 0) {
       mexErrMsgIdAndTxt("MATLAB:explore:invalidStringArray",
                         "Could not convert string data.");
-      mxFree(buf);
+      scs_free(buf);
     } else {
       stgs->write_data_filename = buf;
     }
@@ -276,7 +276,7 @@ void mexFunction(int nlhs, mxArray *plhs[], int nrhs, const mxArray *prhs[]) {
     if (mxGetString(tmp, buf, buflen) != 0) {
       mexErrMsgIdAndTxt("MATLAB:explore:invalidStringArray",
                         "Could not convert string data.");
-      mxFree(buf);
+      scs_free(buf);
     } else {
       stgs->log_csv_filename = buf;
     }

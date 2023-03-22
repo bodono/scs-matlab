@@ -1,14 +1,14 @@
 classdef string_params < matlab.unittest.TestCase
-    
+
     properties
         data
         cones
     end
-    
+
     properties (TestParameter)
         use_indirect = {false, true}
     end
-    
+
     methods(TestMethodSetup)
         function setup_problem(testCase)
             % Create Problem
@@ -28,16 +28,16 @@ classdef string_params < matlab.unittest.TestCase
             pars.acceleration_lookback = 10;
             pars.write_data_filename = sprintf('data_dump_indirect=%d', use_indirect);
             pars.log_csv_filename = sprintf('log_indirect=%d.csv', use_indirect);
-            [x,y,s,info] = scs(testCase.data,testCase.cones,pars);
-            testCase.verifyEqual(info.status, 'solved')
-            
-            % warm-start test
-            testCase.data.x = x;
-            testCase.data.y = y;
-            testCase.data.s = s;
+            % test other params added
+            pars.time_limit_secs = 11.0;
+            pars.adaptive_scale = false;
             [~,~,~,info] = scs(testCase.data,testCase.cones,pars);
             testCase.verifyEqual(info.status, 'solved')
-            testCase.verifyLessThanOrEqual(info.iter, 25)
+
+            pars.time_limit_secs = 0.000001;
+            pars.adaptive_scale = true;
+            [~,~,~,info] = scs(testCase.data,testCase.cones,pars);
+            testCase.verifyEqual(info.status, 'solved (inaccurate - reached time_limit_secs)')
         end
     end
 end
