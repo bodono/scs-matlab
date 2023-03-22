@@ -243,6 +243,28 @@ void mexFunction(int nlhs, mxArray *plhs[], int nrhs, const mxArray *prhs[]) {
     stgs->acceleration_interval = (scs_int)*mxGetPr(tmp);
   }
 
+  tmp = mxGetField(settings, 0, "adaptive_scale");
+  if (tmp != SCS_NULL) {
+    stgs->adaptive_scale = (scs_int)*mxGetPr(tmp);
+  }
+
+  tmp = mxGetField(settings, 0, "time_limit_secs");
+  if (tmp != SCS_NULL) {
+    stgs->time_limit_secs = (scs_float)*mxGetPr(tmp);
+  }
+
+  tmp = mxGetField(settings, 0, "write_data_filename");
+  if (tmp != SCS_NULL) {
+    /* need to free this later */
+    stgs->write_data_filename = mxArrayToString(tmp);
+  }
+
+  tmp = mxGetField(settings, 0, "log_csv_filename");
+  if (tmp != SCS_NULL) {
+    /* need to free this later */
+    stgs->log_csv_filename = mxArrayToString(tmp);
+  }
+
   /* cones */
 
   /* TODO rm this */
@@ -527,6 +549,12 @@ void free_mex(ScsData *d, ScsCone *k, ScsSettings *stgs) {
     scs_free(k);
   }
   if (stgs) {
+    if (stgs->write_data_filename) {
+      scs_free((void *)stgs->write_data_filename);
+    }
+    if (stgs->log_csv_filename) {
+      scs_free((void *)stgs->log_csv_filename);
+    }
     scs_free(stgs);
   }
   if (d) {
