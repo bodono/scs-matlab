@@ -26,8 +26,8 @@ classdef string_params < matlab.unittest.TestCase
         function test_random(testCase, use_indirect)
             pars.use_indirect = use_indirect;
             pars.acceleration_lookback = 10;
-            %pars.write_data_filename = sprintf('data_dump_indirect_%d', use_indirect);
-            %pars.log_csv_filename = sprintf('log_indirect_%d.csv', use_indirect);
+            pars.write_data_filename = sprintf('data_dump_indirect_%d', use_indirect);
+            pars.log_csv_filename = sprintf('log_indirect_%d.csv', use_indirect);
             % test other params added
             pars.time_limit_secs = 11.0;
             pars.adaptive_scale = false;

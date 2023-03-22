@@ -71,7 +71,7 @@ void set_output_field(mxArray **pout, scs_float *out, scs_int len) {
 
 void mexFunction(int nlhs, mxArray *plhs[], int nrhs, const mxArray *prhs[]) {
   /* matlab usage: [x,y,s,info] = scs(data,cone,settings); */
-  scs_int i, ns, status, nbl, nbu, blen, buflen;
+  scs_int i, ns, status, nbl, nbu, blen;
   ScsData *d;
   ScsCone *k;
   ScsSettings *stgs;
@@ -80,6 +80,7 @@ void mexFunction(int nlhs, mxArray *plhs[], int nrhs, const mxArray *prhs[]) {
   ScsMatrix *A;
   ScsMatrix *P = SCS_NULL;
   char *buf;
+  mwSize buflen;
 
   const mxArray *data;
   const mxArray *A_mex;
