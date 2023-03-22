@@ -17,6 +17,8 @@ python/build/
 python/cover/
 python_dist
 linsys_dense/out
+test/data_dump_*
+test/log_*
 out
 .swo
 *.o
