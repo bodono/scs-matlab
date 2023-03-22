@@ -256,13 +256,17 @@ void mexFunction(int nlhs, mxArray *plhs[], int nrhs, const mxArray *prhs[]) {
   }
 
   tmp = mxGetField(settings, 0, "write_data_filename");
+  char * str;
   if (tmp != SCS_NULL) {
-    stgs->write_data_filename = mxArrayToString(tmp);
+    //stgs->write_data_filename = mxArrayToString(tmp);
+    str = mxArrayToString(tmp);
   }
 
+  char * str1;
   tmp = mxGetField(settings, 0, "log_csv_filename");
   if (tmp != SCS_NULL) {
-    stgs->log_csv_filename = mxArrayToString(tmp);
+    //stgs->log_csv_filename = mxArrayToString(tmp);
+    str1 = mxArrayToString(tmp);
   }
 
   /* cones */
