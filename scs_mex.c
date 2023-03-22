@@ -566,12 +566,14 @@ void free_mex(ScsData *d, ScsCone *k, ScsSettings *stgs) {
     scs_free(k);
   }
   if (stgs) {
+    /*
     if (stgs->write_data_filename) {
       scs_free((void *)stgs->write_data_filename);
     }
     if (stgs->log_csv_filename) {
       scs_free((void *)stgs->log_csv_filename);
     }
+    */
     scs_free(stgs);
   }
   if (d) {
