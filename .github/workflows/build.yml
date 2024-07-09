@@ -17,7 +17,7 @@ jobs:
         with:
           submodules: 'recursive'
 
-      - uses: matlab-actions/setup-matlab@v1
+      - uses: matlab-actions/setup-matlab@v2
 
       - uses: matlab-actions/run-command@v1
         with:
