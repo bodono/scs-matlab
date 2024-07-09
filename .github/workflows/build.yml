@@ -24,7 +24,7 @@ jobs:
           command: make_scs
 
       - name: Test
-        uses: matlab-actions/run-tests@v1
+        uses: matlab-actions/run-tests@v2
         with:
           source-folder: ./
           select-by-folder: test
