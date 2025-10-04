@@ -71,7 +71,7 @@ void set_output_field(mxArray **pout, scs_float *out, scs_int len) {
 
 void mexFunction(int nlhs, mxArray *plhs[], int nrhs, const mxArray *prhs[]) {
   /* matlab usage: [x,y,s,info] = scs(data,cone,settings); */
-  scs_int i, ns, status, nbl, nbu, blen;
+  scs_int i, ns, ncs, status, nbl, nbu, blen;
   ScsData *d;
   ScsCone *k;
   ScsSettings *stgs;
@@ -93,6 +93,7 @@ void mexFunction(int nlhs, mxArray *plhs[], int nrhs, const mxArray *prhs[]) {
   const mxArray *kbu;
   const mxArray *kq;
   const mxArray *ks;
+  const mxArray *kcs;
   const mxArray *kep;
   const mxArray *ked;
   const mxArray *kp;
@@ -100,11 +101,13 @@ void mexFunction(int nlhs, mxArray *plhs[], int nrhs, const mxArray *prhs[]) {
   const double *bl_mex;
   const double *bu_mex;
   const double *s_mex;
+  const double *cs_mex;
   const double *p_mex;
   const size_t *bl_dims;
   const size_t *bu_dims;
   const size_t *q_dims;
   const size_t *s_dims;
+  const size_t *cs_dims;
   const size_t *p_dims;
 
   const mxArray *cone;
@@ -379,6 +382,24 @@ void mexFunction(int nlhs, mxArray *plhs[], int nrhs, const mxArray *prhs[]) {
     k->s = SCS_NULL;
   }
 
+  kcs = mxGetField(cone, 0, "cs");
+  if (kcs && !mxIsEmpty(kcs)) {
+    cs_mex = mxGetPr(kcs);
+    ncs = (scs_int)mxGetNumberOfDimensions(kcs);
+    cs_dims = mxGetDimensions(kcs);
+    k->cssize = (scs_int)cs_dims[0];
+    if (ncs > 1 && cs_dims[0] == 1) {
+      k->cssize = (scs_int)cs_dims[1];
+    }
+    k->cs = (scs_int *)mxMalloc(sizeof(scs_int) * k->cssize);
+    for (i = 0; i < k->cssize; i++) {
+      k->cs[i] = (scs_int)cs_mex[i];
+    }
+  } else {
+    k->cssize = 0;
+    k->cs = SCS_NULL;
+  }
+
   kp = mxGetField(cone, 0, "p");
   if (kp && !mxIsEmpty(kp)) {
     p_mex = mxGetPr(kp);
@@ -543,6 +564,9 @@ void free_mex(ScsData *d, ScsCone *k, ScsSettings *stgs) {
     if (k->s) {
       scs_free(k->s);
     }
+    if (k->cs) {
+      scs_free(k->cs);
+    }
     if (k->p) {
       scs_free(k->p);
     }
@@ -601,3 +625,4 @@ void free_mex(ScsData *d, ScsCone *k, ScsSettings *stgs) {
     scs_free(d);
   }
 }
+
