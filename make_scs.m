@@ -1,3 +1,6 @@
+scs_root = fileparts(mfilename('fullpath'));
+old_dir = cd(scs_root);
+
 gpu = false; % compile the gpu version of SCS
 float = false; % using single precision (rather than double) floating points
 int = false; % use 32 bit integers for indexing
@@ -26,7 +29,7 @@ common_scs = [ ...
     'scs/src/spectral_cones/sum-largest/sum_largest_cone.c ' ...
     'scs/src/spectral_cones/sum-largest/sum_largest_eval_cone.c ' ...
     'scs/src/spectral_cones/util_spectral_cones.c ' ...
-    'scs_mex.c'];
+    'private/scs_mex.c'];
 if (contains(computer, '64'))
     flags.arr = '-largeArrayDims';
 else
@@ -73,9 +76,18 @@ if (gpu)
 end
 
 % compile scs_version
-mex -v -O -Iscs/include -Iscs/linsys scs/src/scs_version.c scs_version_mex.c -output scs_version
+mex -v -O -Iscs/include -Iscs/linsys scs/src/scs_version.c private/scs_version_mex.c -output scs_version
 
-addpath '.'
+addpath(scs_root);
+if savepath ~= 0
+    fprintf('\n');
+    fprintf('NOTE: Could not save the MATLAB path permanently.\n');
+    fprintf('To use SCS in future sessions, add this line to your startup.m:\n');
+    fprintf('  addpath(''%s'');\n', scs_root);
+    fprintf('\n');
+end
+
+cd(old_dir);
 
 disp('SUCCESSFULLY INSTALLED SCS')
 disp('(If using SCS with CVX, note that SCS only supports CVX v3.0 or later).')
