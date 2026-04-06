@@ -1,0 +1,33 @@
+name: Weekly Tests
+
+on:
+  schedule:
+    - cron: '0 9 * * 1' # Every Monday at 9:00 UTC
+  workflow_dispatch: # Allow manual triggers
+
+jobs:
+  test:
+    name: Test (${{ matrix.os }})
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest]
+
+    runs-on: ${{ matrix.os }}
+
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          submodules: 'recursive'
+
+      - uses: matlab-actions/setup-matlab@v3
+
+      - uses: matlab-actions/run-command@v3
+        with:
+          command: make_scs
+
+      - name: Test
+        uses: matlab-actions/run-tests@v3
+        with:
+          source-folder: ./
+          select-by-folder: test
