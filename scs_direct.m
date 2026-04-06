@@ -1,38 +1,51 @@
-function [x, y, s, info] = scs_direct(data, cone, params)			    
+function [x, y, s, info] = scs_direct(data, cone, params)
 % Operator-splitting method for solving cone problems (direct)
 %
 % This implements a cone solver. It solves:
 %
-% min. c'x
+% min. 0.5 * x'Px + c'x
 % subject to Ax + s = b
 % s \in K
 %
 % where x \in R^n, s \in R^m
 %
-% this uses the direct linear equation solver version of SCS
+% This uses the direct (sparse LDL) linear equation solver version of SCS.
 %
 % K is product of cones in this particular order:
-% free cone, lp cone, second order cone(s), semi-definite cone(s), primal
-% exponential cones, dual exponential cones
+% zero cone, lp cone, box cone, second order cone(s), semi-definite
+% cone(s), complex semi-definite cone(s), primal exponential cones,
+% dual exponential cones, power cones
 %
 % data must consist of data.A, data.b, data.c, where A,b,c used as above.
-%  
+% data.P is optional (set to [] or omit for LP/SOCP/SDP).
+%
 % cone struct must consist of:
-% cone.f, length of free cone (for equality constraints)
+% cone.z, length of zero cone (for equality constraints)
 % cone.l, length of lp cone
+% cone.bl, cone.bu, lower and upper bounds for box cone
 % cone.q, array of SOC lengths
 % cone.s, array of SD lengths
+% cone.cs, array of complex SD lengths
 % cone.ep, number of primal exp cones
 % cone.ed, number of dual exp cones
+% cone.p, array of power cone parameters
 %
 % Optional fields in the params struct are:
-%   alpha       : over-relaxation parameter, between (0,2).
-%   rho_x       : momentum of x term (1e-3 works well)
-%   max_iters   : maximum number of ADMM iterations.
-%   eps         : accuracy of solution
-%   verbose     : verbosity level (0 or 1)
-%   normalize   : heuristic data rescaling (0 or 1, off or on)
-%   scale       : rescales data up by this factor (only used if normalize=1)
+%   alpha                  : Douglas-Rachford relaxation parameter, between (0,2)
+%   rho_x                  : primal constraint scaling factor
+%   max_iters              : maximum number of iterations
+%   eps_abs                : absolute convergence tolerance
+%   eps_rel                : relative convergence tolerance
+%   eps_infeas             : infeasibility tolerance
+%   verbose                : verbosity level (0 or 1)
+%   normalize              : heuristic data rescaling (0 or 1)
+%   scale                  : initial dual scaling factor
+%   adaptive_scale         : whether to adaptively update scale (0 or 1)
+%   acceleration_lookback  : memory for Anderson acceleration (0 to disable)
+%   acceleration_interval  : interval to apply acceleration
+%   time_limit_secs        : time limit in seconds
+%   write_data_filename    : if set, dump raw problem data to file
+%   log_csv_filename       : if set, log progress to csv file
 %
 % to warm-start the solver add guesses for (x, y, s) to the data struct
 %
