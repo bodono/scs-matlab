@@ -25,7 +25,7 @@ classdef power_cone < matlab.unittest.TestCase
             pars.use_indirect = use_indirect;
             pars.verbose = 0;
             [~,~,~,info] = scs(testCase.data,testCase.cones,pars);
-            testCase.verifyTrue(contains(info.status, 'solved'))
+            testCase.verifyEqual(info.status, 'solved')
         end
     end
 end
