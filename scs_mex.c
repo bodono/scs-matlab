@@ -134,9 +134,9 @@ void mexFunction(int nlhs, mxArray *plhs[], int nrhs, const mxArray *prhs[]) {
   if (nlhs > 4) {
     mexErrMsgTxt("scs returns up to 4 output arguments only.");
   }
-  d = (ScsData *)mxMalloc(sizeof(ScsData));
-  stgs = (ScsSettings *)mxMalloc(sizeof(ScsSettings));
-  k = (ScsCone *)mxMalloc(sizeof(ScsCone));
+  d = (ScsData *)scs_malloc(sizeof(ScsData));
+  stgs = (ScsSettings *)scs_malloc(sizeof(ScsSettings));
+  k = (ScsCone *)scs_malloc(sizeof(ScsCone));
   data = prhs[0];
 
   A_mex = (mxArray *)mxGetField(data, 0, "A");
@@ -154,7 +154,7 @@ void mexFunction(int nlhs, mxArray *plhs[], int nrhs, const mxArray *prhs[]) {
   if (P_mex && !mxIsSparse(P_mex)) {
     scs_free(d);
     scs_free(k);
-    mexErrMsgTxt("Input matrix P must be in sparse format (pass in sparse(A))");
+    mexErrMsgTxt("Input matrix P must be in sparse format (pass in sparse(P))");
   }
   b_mex = (mxArray *)mxGetField(data, 0, "b");
   if (b_mex == SCS_NULL) {
@@ -322,8 +322,8 @@ void mexFunction(int nlhs, mxArray *plhs[], int nrhs, const mxArray *prhs[]) {
     if (nbl > 1 && bu_dims[0] == 1) {
       blen = (scs_int)bu_dims[1];
     }
-    k->bu = (scs_float *)mxMalloc(sizeof(scs_int) * blen);
-    k->bl = (scs_float *)mxMalloc(sizeof(scs_int) * blen);
+    k->bu = (scs_float *)scs_malloc(sizeof(scs_float) * blen);
+    k->bl = (scs_float *)scs_malloc(sizeof(scs_float) * blen);
 
     for (i = 0; i < blen; i++) {
       k->bl[i] = (scs_float)bl_mex[i];
@@ -345,7 +345,7 @@ void mexFunction(int nlhs, mxArray *plhs[], int nrhs, const mxArray *prhs[]) {
     if (ns > 1 && q_dims[0] == 1) {
       k->qsize = (scs_int)q_dims[1];
     }
-    k->q = (scs_int *)mxMalloc(sizeof(scs_int) * k->qsize);
+    k->q = (scs_int *)scs_malloc(sizeof(scs_int) * k->qsize);
     for (i = 0; i < k->qsize; i++) {
       k->q[i] = (scs_int)q_mex[i];
     }
@@ -363,7 +363,7 @@ void mexFunction(int nlhs, mxArray *plhs[], int nrhs, const mxArray *prhs[]) {
     if (ns > 1 && s_dims[0] == 1) {
       k->ssize = (scs_int)s_dims[1];
     }
-    k->s = (scs_int *)mxMalloc(sizeof(scs_int) * k->ssize);
+    k->s = (scs_int *)scs_malloc(sizeof(scs_int) * k->ssize);
     for (i = 0; i < k->ssize; i++) {
       k->s[i] = (scs_int)s_mex[i];
     }
@@ -381,7 +381,7 @@ void mexFunction(int nlhs, mxArray *plhs[], int nrhs, const mxArray *prhs[]) {
     if (ncs > 1 && cs_dims[0] == 1) {
       k->cssize = (scs_int)cs_dims[1];
     }
-    k->cs = (scs_int *)mxMalloc(sizeof(scs_int) * k->cssize);
+    k->cs = (scs_int *)scs_malloc(sizeof(scs_int) * k->cssize);
     for (i = 0; i < k->cssize; i++) {
       k->cs[i] = (scs_int)cs_mex[i];
     }
@@ -399,7 +399,7 @@ void mexFunction(int nlhs, mxArray *plhs[], int nrhs, const mxArray *prhs[]) {
     if (ns > 1 && p_dims[0] == 1) {
       k->psize = (scs_int)p_dims[1];
     }
-    k->p = (scs_float *)mxMalloc(sizeof(scs_float) * k->psize);
+    k->p = (scs_float *)scs_malloc(sizeof(scs_float) * k->psize);
     for (i = 0; i < k->psize; i++) {
       k->p[i] = (scs_float)p_mex[i];
     }
@@ -426,7 +426,7 @@ void mexFunction(int nlhs, mxArray *plhs[], int nrhs, const mxArray *prhs[]) {
       if (nd > 1 && tmp_dims[0] == 1) {
         k->dsize = (scs_int)tmp_dims[1];
       }
-      k->d = (scs_int *)mxMalloc(sizeof(scs_int) * k->dsize);
+      k->d = (scs_int *)scs_malloc(sizeof(scs_int) * k->dsize);
       for (i = 0; i < k->dsize; i++) {
         k->d[i] = (scs_int)d_mex_arr[i];
       }
@@ -447,8 +447,8 @@ void mexFunction(int nlhs, mxArray *plhs[], int nrhs, const mxArray *prhs[]) {
       if (nd > 1 && tmp_dims[0] == 1) {
         k->nucsize = (scs_int)tmp_dims[1];
       }
-      k->nuc_m = (scs_int *)mxMalloc(sizeof(scs_int) * k->nucsize);
-      k->nuc_n = (scs_int *)mxMalloc(sizeof(scs_int) * k->nucsize);
+      k->nuc_m = (scs_int *)scs_malloc(sizeof(scs_int) * k->nucsize);
+      k->nuc_n = (scs_int *)scs_malloc(sizeof(scs_int) * k->nucsize);
       for (i = 0; i < k->nucsize; i++) {
         k->nuc_m[i] = (scs_int)nuc_m_mex[i];
         k->nuc_n[i] = (scs_int)nuc_n_mex[i];
@@ -469,7 +469,7 @@ void mexFunction(int nlhs, mxArray *plhs[], int nrhs, const mxArray *prhs[]) {
       if (nd > 1 && tmp_dims[0] == 1) {
         k->ell1_size = (scs_int)tmp_dims[1];
       }
-      k->ell1 = (scs_int *)mxMalloc(sizeof(scs_int) * k->ell1_size);
+      k->ell1 = (scs_int *)scs_malloc(sizeof(scs_int) * k->ell1_size);
       for (i = 0; i < k->ell1_size; i++) {
         k->ell1[i] = (scs_int)ell1_mex[i];
       }
@@ -490,8 +490,8 @@ void mexFunction(int nlhs, mxArray *plhs[], int nrhs, const mxArray *prhs[]) {
       if (nd > 1 && tmp_dims[0] == 1) {
         k->sl_size = (scs_int)tmp_dims[1];
       }
-      k->sl_n = (scs_int *)mxMalloc(sizeof(scs_int) * k->sl_size);
-      k->sl_k = (scs_int *)mxMalloc(sizeof(scs_int) * k->sl_size);
+      k->sl_n = (scs_int *)scs_malloc(sizeof(scs_int) * k->sl_size);
+      k->sl_k = (scs_int *)scs_malloc(sizeof(scs_int) * k->sl_size);
       for (i = 0; i < k->sl_size; i++) {
         k->sl_n[i] = (scs_int)sl_n_mex[i];
         k->sl_k[i] = (scs_int)sl_k_mex[i];
