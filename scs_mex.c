@@ -13,7 +13,7 @@ scs_int parse_warm_start(const mxArray *p_mex, scs_float **p, scs_int l) {
       l, sizeof(scs_float)); /* this allocates memory used for ScsSolution */
   if (p_mex == SCS_NULL) {
     return 0;
-  } else if (mxIsSparse(p_mex) || (scs_int)*mxGetDimensions(p_mex) != l) {
+  } else if (mxIsSparse(p_mex) || (scs_int)mxGetNumberOfElements(p_mex) != l) {
     scs_printf("Error parsing warm start input (make sure vectors are not "
                "sparse and of correct size), running without full "
                "warm-start");
@@ -143,39 +143,46 @@ void mexFunction(int nlhs, mxArray *plhs[], int nrhs, const mxArray *prhs[]) {
   if (A_mex == SCS_NULL) {
     scs_free(d);
     scs_free(k);
+    scs_free(stgs);
     mexErrMsgTxt("ScsData struct must contain a `A` entry.");
   }
   if (!mxIsSparse(A_mex)) {
     scs_free(d);
     scs_free(k);
+    scs_free(stgs);
     mexErrMsgTxt("Input matrix A must be in sparse format (pass in sparse(A))");
   }
   P_mex = (mxArray *)mxGetField(data, 0, "P"); /* can be SCS_NULL */
   if (P_mex && !mxIsSparse(P_mex)) {
     scs_free(d);
     scs_free(k);
+    scs_free(stgs);
     mexErrMsgTxt("Input matrix P must be in sparse format (pass in sparse(P))");
   }
   b_mex = (mxArray *)mxGetField(data, 0, "b");
   if (b_mex == SCS_NULL) {
     scs_free(d);
     scs_free(k);
+    scs_free(stgs);
     mexErrMsgTxt("ScsData struct must contain a `b` entry.");
   }
   if (mxIsSparse(b_mex)) {
     scs_free(d);
     scs_free(k);
+    scs_free(stgs);
     mexErrMsgTxt("Input vector b must be in dense format (pass in full(b))");
   }
   c_mex = (mxArray *)mxGetField(data, 0, "c");
   if (c_mex == SCS_NULL) {
     scs_free(d);
     scs_free(k);
+    scs_free(stgs);
     mexErrMsgTxt("ScsData struct must contain a `c` entry.");
   }
   if (mxIsSparse(c_mex)) {
     scs_free(d);
     scs_free(k);
+    scs_free(stgs);
     mexErrMsgTxt("Input vector c must be in dense format (pass in full(c))");
   }
   cone = prhs[1];
