@@ -86,7 +86,6 @@ void mexFunction(int nlhs, mxArray *plhs[], int nrhs, const mxArray *prhs[]) {
   const mxArray *b_mex;
   const mxArray *c_mex;
 
-  const mxArray *kf;
   const mxArray *kz;
   const mxArray *kl;
   const mxArray *kbl;
@@ -114,12 +113,14 @@ void mexFunction(int nlhs, mxArray *plhs[], int nrhs, const mxArray *prhs[]) {
   const mxArray *settings;
 
   const mwSize one[1] = {1};
-  const int num_info_fields = 16;
+  const int num_info_fields = 22;
   const char *info_fields[] = {
       "iter",       "status",     "pobj",          "dobj",
       "res_pri",    "res_dual",   "res_infeas",    "res_unbdd_a",
       "scale",      "status_val", "res_unbdd_p",   "gap",
-      "setup_time", "solve_time", "scale_updates", "comp_slack"};
+      "setup_time", "solve_time", "scale_updates", "comp_slack",
+      "lin_sys_solver", "rejected_accel_steps", "accepted_accel_steps",
+      "lin_sys_time", "cone_time", "accel_time"};
   mxArray *tmp;
 #if VERBOSITY > 0
   scs_printf("SIZE OF mwSize = %i\n", (int)sizeof(mwSize));
@@ -270,22 +271,11 @@ void mexFunction(int nlhs, mxArray *plhs[], int nrhs, const mxArray *prhs[]) {
 
   /* cones */
 
-  /* TODO rm this */
-  kf = mxGetField(cone, 0, "f");
-  if (kf && !mxIsEmpty(kf)) {
-    scs_printf("SCS deprecation warning: The 'f' field in the cone struct \n"
-               "has been replaced by 'z' to better reflect the Zero cone. \n"
-               "Please replace usage of 'f' with 'z'. If both 'f' and 'z' \n"
-               "are set then we sum the two fields to get the final zero \n"
-               "cone size.\n");
-    k->z = (scs_int)*mxGetPr(kf);
-  } else {
-    k->z = 0;
-  }
-
   kz = mxGetField(cone, 0, "z");
   if (kz && !mxIsEmpty(kz)) {
-    k->z += (scs_int)*mxGetPr(kz); /* TODO rm this */
+    k->z = (scs_int)*mxGetPr(kz);
+  } else {
+    k->z = 0;
   }
 
   kl = mxGetField(cone, 0, "l");
@@ -418,6 +408,102 @@ void mexFunction(int nlhs, mxArray *plhs[], int nrhs, const mxArray *prhs[]) {
     k->p = SCS_NULL;
   }
 
+#ifdef USE_SPECTRAL_CONES
+  {
+    const mxArray *kd, *knuc_m, *knuc_n, *kell1, *ksl_n, *ksl_k;
+    const double *d_mex_arr, *nuc_m_mex, *nuc_n_mex, *ell1_mex;
+    const double *sl_n_mex, *sl_k_mex;
+    const size_t *tmp_dims;
+    scs_int nd;
+
+    /* logdet cones: cone.d */
+    kd = mxGetField(cone, 0, "d");
+    if (kd && !mxIsEmpty(kd)) {
+      d_mex_arr = mxGetPr(kd);
+      nd = (scs_int)mxGetNumberOfDimensions(kd);
+      tmp_dims = mxGetDimensions(kd);
+      k->dsize = (scs_int)tmp_dims[0];
+      if (nd > 1 && tmp_dims[0] == 1) {
+        k->dsize = (scs_int)tmp_dims[1];
+      }
+      k->d = (scs_int *)mxMalloc(sizeof(scs_int) * k->dsize);
+      for (i = 0; i < k->dsize; i++) {
+        k->d[i] = (scs_int)d_mex_arr[i];
+      }
+    } else {
+      k->dsize = 0;
+      k->d = SCS_NULL;
+    }
+
+    /* nuclear norm cones: cone.nuc_m, cone.nuc_n */
+    knuc_m = mxGetField(cone, 0, "nuc_m");
+    knuc_n = mxGetField(cone, 0, "nuc_n");
+    if (knuc_m && knuc_n && !mxIsEmpty(knuc_m) && !mxIsEmpty(knuc_n)) {
+      nuc_m_mex = mxGetPr(knuc_m);
+      nuc_n_mex = mxGetPr(knuc_n);
+      nd = (scs_int)mxGetNumberOfDimensions(knuc_m);
+      tmp_dims = mxGetDimensions(knuc_m);
+      k->nucsize = (scs_int)tmp_dims[0];
+      if (nd > 1 && tmp_dims[0] == 1) {
+        k->nucsize = (scs_int)tmp_dims[1];
+      }
+      k->nuc_m = (scs_int *)mxMalloc(sizeof(scs_int) * k->nucsize);
+      k->nuc_n = (scs_int *)mxMalloc(sizeof(scs_int) * k->nucsize);
+      for (i = 0; i < k->nucsize; i++) {
+        k->nuc_m[i] = (scs_int)nuc_m_mex[i];
+        k->nuc_n[i] = (scs_int)nuc_n_mex[i];
+      }
+    } else {
+      k->nucsize = 0;
+      k->nuc_m = SCS_NULL;
+      k->nuc_n = SCS_NULL;
+    }
+
+    /* ell1-norm cones: cone.ell1 */
+    kell1 = mxGetField(cone, 0, "ell1");
+    if (kell1 && !mxIsEmpty(kell1)) {
+      ell1_mex = mxGetPr(kell1);
+      nd = (scs_int)mxGetNumberOfDimensions(kell1);
+      tmp_dims = mxGetDimensions(kell1);
+      k->ell1_size = (scs_int)tmp_dims[0];
+      if (nd > 1 && tmp_dims[0] == 1) {
+        k->ell1_size = (scs_int)tmp_dims[1];
+      }
+      k->ell1 = (scs_int *)mxMalloc(sizeof(scs_int) * k->ell1_size);
+      for (i = 0; i < k->ell1_size; i++) {
+        k->ell1[i] = (scs_int)ell1_mex[i];
+      }
+    } else {
+      k->ell1_size = 0;
+      k->ell1 = SCS_NULL;
+    }
+
+    /* sum-of-largest-eigenvalues cones: cone.sl_n, cone.sl_k */
+    ksl_n = mxGetField(cone, 0, "sl_n");
+    ksl_k = mxGetField(cone, 0, "sl_k");
+    if (ksl_n && ksl_k && !mxIsEmpty(ksl_n) && !mxIsEmpty(ksl_k)) {
+      sl_n_mex = mxGetPr(ksl_n);
+      sl_k_mex = mxGetPr(ksl_k);
+      nd = (scs_int)mxGetNumberOfDimensions(ksl_n);
+      tmp_dims = mxGetDimensions(ksl_n);
+      k->sl_size = (scs_int)tmp_dims[0];
+      if (nd > 1 && tmp_dims[0] == 1) {
+        k->sl_size = (scs_int)tmp_dims[1];
+      }
+      k->sl_n = (scs_int *)mxMalloc(sizeof(scs_int) * k->sl_size);
+      k->sl_k = (scs_int *)mxMalloc(sizeof(scs_int) * k->sl_size);
+      for (i = 0; i < k->sl_size; i++) {
+        k->sl_n[i] = (scs_int)sl_n_mex[i];
+        k->sl_k[i] = (scs_int)sl_k_mex[i];
+      }
+    } else {
+      k->sl_size = 0;
+      k->sl_n = SCS_NULL;
+      k->sl_k = SCS_NULL;
+    }
+  }
+#endif
+
   A = (ScsMatrix *)scs_malloc(sizeof(ScsMatrix));
   A->n = d->n;
   A->m = d->m;
@@ -546,6 +632,28 @@ void mexFunction(int nlhs, mxArray *plhs[], int nrhs, const mxArray *prhs[]) {
   mxSetField(plhs[3], 0, "solve_time", tmp);
   *mxGetPr(tmp) = info.solve_time;
 
+  mxSetField(plhs[3], 0, "lin_sys_solver", mxCreateString(info.lin_sys_solver));
+
+  tmp = mxCreateDoubleMatrix(1, 1, mxREAL);
+  mxSetField(plhs[3], 0, "rejected_accel_steps", tmp);
+  *mxGetPr(tmp) = (scs_float)info.rejected_accel_steps;
+
+  tmp = mxCreateDoubleMatrix(1, 1, mxREAL);
+  mxSetField(plhs[3], 0, "accepted_accel_steps", tmp);
+  *mxGetPr(tmp) = (scs_float)info.accepted_accel_steps;
+
+  tmp = mxCreateDoubleMatrix(1, 1, mxREAL);
+  mxSetField(plhs[3], 0, "lin_sys_time", tmp);
+  *mxGetPr(tmp) = info.lin_sys_time;
+
+  tmp = mxCreateDoubleMatrix(1, 1, mxREAL);
+  mxSetField(plhs[3], 0, "cone_time", tmp);
+  *mxGetPr(tmp) = info.cone_time;
+
+  tmp = mxCreateDoubleMatrix(1, 1, mxREAL);
+  mxSetField(plhs[3], 0, "accel_time", tmp);
+  *mxGetPr(tmp) = info.accel_time;
+
   free_mex(d, k, stgs);
   return;
 }
@@ -570,6 +678,26 @@ void free_mex(ScsData *d, ScsCone *k, ScsSettings *stgs) {
     if (k->p) {
       scs_free(k->p);
     }
+#ifdef USE_SPECTRAL_CONES
+    if (k->d) {
+      scs_free(k->d);
+    }
+    if (k->nuc_m) {
+      scs_free(k->nuc_m);
+    }
+    if (k->nuc_n) {
+      scs_free(k->nuc_n);
+    }
+    if (k->ell1) {
+      scs_free(k->ell1);
+    }
+    if (k->sl_n) {
+      scs_free(k->sl_n);
+    }
+    if (k->sl_k) {
+      scs_free(k->sl_k);
+    }
+#endif
     scs_free(k);
   }
   if (stgs) {
