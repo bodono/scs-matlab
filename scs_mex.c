@@ -422,18 +422,90 @@ static void parse_cones(const mxArray *cone_mex, ScsCone **k_out) {
     k->p = SCS_NULL;
   }
 
+#ifdef USE_SPECTRAL_CONES
+  {
+    const mxArray *kd, *knuc_m, *knuc_n, *kell1, *ksl_n, *ksl_k;
+    const double *d_mex_arr, *nuc_m_mex, *nuc_n_mex, *ell1_mex;
+    const double *sl_n_mex, *sl_k_mex;
+
+    kd = mxGetField(cone_mex, 0, "d");
+    if (kd && !mxIsEmpty(kd)) {
+      d_mex_arr = mxGetPr(kd);
+      k->dsize = get_mex_length(kd);
+      k->d = (scs_int *)scs_malloc(sizeof(scs_int) * k->dsize);
+      for (i = 0; i < k->dsize; i++) {
+        k->d[i] = (scs_int)d_mex_arr[i];
+      }
+    } else {
+      k->dsize = 0;
+      k->d = SCS_NULL;
+    }
+
+    knuc_m = mxGetField(cone_mex, 0, "nuc_m");
+    knuc_n = mxGetField(cone_mex, 0, "nuc_n");
+    if (knuc_m && knuc_n && !mxIsEmpty(knuc_m) && !mxIsEmpty(knuc_n)) {
+      nuc_m_mex = mxGetPr(knuc_m);
+      nuc_n_mex = mxGetPr(knuc_n);
+      k->nucsize = get_mex_length(knuc_m);
+      k->nuc_m = (scs_int *)scs_malloc(sizeof(scs_int) * k->nucsize);
+      k->nuc_n = (scs_int *)scs_malloc(sizeof(scs_int) * k->nucsize);
+      for (i = 0; i < k->nucsize; i++) {
+        k->nuc_m[i] = (scs_int)nuc_m_mex[i];
+        k->nuc_n[i] = (scs_int)nuc_n_mex[i];
+      }
+    } else {
+      k->nucsize = 0;
+      k->nuc_m = SCS_NULL;
+      k->nuc_n = SCS_NULL;
+    }
+
+    kell1 = mxGetField(cone_mex, 0, "ell1");
+    if (kell1 && !mxIsEmpty(kell1)) {
+      ell1_mex = mxGetPr(kell1);
+      k->ell1_size = get_mex_length(kell1);
+      k->ell1 = (scs_int *)scs_malloc(sizeof(scs_int) * k->ell1_size);
+      for (i = 0; i < k->ell1_size; i++) {
+        k->ell1[i] = (scs_int)ell1_mex[i];
+      }
+    } else {
+      k->ell1_size = 0;
+      k->ell1 = SCS_NULL;
+    }
+
+    ksl_n = mxGetField(cone_mex, 0, "sl_n");
+    ksl_k = mxGetField(cone_mex, 0, "sl_k");
+    if (ksl_n && ksl_k && !mxIsEmpty(ksl_n) && !mxIsEmpty(ksl_k)) {
+      sl_n_mex = mxGetPr(ksl_n);
+      sl_k_mex = mxGetPr(ksl_k);
+      k->sl_size = get_mex_length(ksl_n);
+      k->sl_n = (scs_int *)scs_malloc(sizeof(scs_int) * k->sl_size);
+      k->sl_k = (scs_int *)scs_malloc(sizeof(scs_int) * k->sl_size);
+      for (i = 0; i < k->sl_size; i++) {
+        k->sl_n[i] = (scs_int)sl_n_mex[i];
+        k->sl_k[i] = (scs_int)sl_k_mex[i];
+      }
+    } else {
+      k->sl_size = 0;
+      k->sl_n = SCS_NULL;
+      k->sl_k = SCS_NULL;
+    }
+  }
+#endif
+
   *k_out = k;
 }
 
 /* Write ScsInfo to a MATLAB struct and assign to plhs[3] */
 static void write_info(mxArray **plhs3, const ScsInfo *info) {
   const mwSize one[1] = {1};
-  const int num_info_fields = 16;
+  const int num_info_fields = 22;
   const char *info_fields[] = {
-      "iter",       "status",     "pobj",          "dobj",
-      "res_pri",    "res_dual",   "res_infeas",    "res_unbdd_a",
-      "scale",      "status_val", "res_unbdd_p",   "gap",
-      "setup_time", "solve_time", "scale_updates", "comp_slack"};
+      "iter",       "status",         "pobj",          "dobj",
+      "res_pri",    "res_dual",       "res_infeas",    "res_unbdd_a",
+      "scale",      "status_val",     "res_unbdd_p",   "gap",
+      "setup_time", "solve_time",     "scale_updates", "comp_slack",
+      "lin_sys_solver", "rejected_accel_steps", "accepted_accel_steps",
+      "lin_sys_time",   "cone_time",            "accel_time"};
   mxArray *tmp;
 
   *plhs3 = mxCreateStructArray(1, one, num_info_fields, info_fields);
@@ -501,6 +573,29 @@ static void write_info(mxArray **plhs3, const ScsInfo *info) {
   tmp = mxCreateDoubleMatrix(1, 1, mxREAL);
   mxSetField(*plhs3, 0, "solve_time", tmp);
   *mxGetPr(tmp) = info->solve_time;
+
+  mxSetField(*plhs3, 0, "lin_sys_solver",
+             mxCreateString(info->lin_sys_solver));
+
+  tmp = mxCreateDoubleMatrix(1, 1, mxREAL);
+  mxSetField(*plhs3, 0, "rejected_accel_steps", tmp);
+  *mxGetPr(tmp) = (scs_float)info->rejected_accel_steps;
+
+  tmp = mxCreateDoubleMatrix(1, 1, mxREAL);
+  mxSetField(*plhs3, 0, "accepted_accel_steps", tmp);
+  *mxGetPr(tmp) = (scs_float)info->accepted_accel_steps;
+
+  tmp = mxCreateDoubleMatrix(1, 1, mxREAL);
+  mxSetField(*plhs3, 0, "lin_sys_time", tmp);
+  *mxGetPr(tmp) = info->lin_sys_time;
+
+  tmp = mxCreateDoubleMatrix(1, 1, mxREAL);
+  mxSetField(*plhs3, 0, "cone_time", tmp);
+  *mxGetPr(tmp) = info->cone_time;
+
+  tmp = mxCreateDoubleMatrix(1, 1, mxREAL);
+  mxSetField(*plhs3, 0, "accel_time", tmp);
+  *mxGetPr(tmp) = info->accel_time;
 }
 
 /* ======================== MEX entry point ======================== */
@@ -685,6 +780,26 @@ void free_mex(ScsData *d, ScsCone *k, ScsSettings *stgs) {
     if (k->p) {
       scs_free(k->p);
     }
+#ifdef USE_SPECTRAL_CONES
+    if (k->d) {
+      scs_free(k->d);
+    }
+    if (k->nuc_m) {
+      scs_free(k->nuc_m);
+    }
+    if (k->nuc_n) {
+      scs_free(k->nuc_n);
+    }
+    if (k->ell1) {
+      scs_free(k->ell1);
+    }
+    if (k->sl_n) {
+      scs_free(k->sl_n);
+    }
+    if (k->sl_k) {
+      scs_free(k->sl_k);
+    }
+#endif
     scs_free(k);
   }
   if (stgs) {

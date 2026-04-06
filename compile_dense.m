@@ -1,0 +1,4 @@
+function compile_dense(flags, common_scs)
+% compile dense direct (Gram matrix + Cholesky via LAPACK)
+cmd = sprintf('mex -O -v %s %s %s %s COMPFLAGS="$COMPFLAGS %s" CFLAGS="$CFLAGS %s" scs/linsys/cpu/dense/private.c %s -Iscs -Iscs/linsys -Iscs/include -Iscs/linsys/cpu/dense %s %s %s -output scs_dense', flags.arr, flags.LCFLAG, common_scs, flags.INCS, flags.COMPFLAGS, flags.CFLAGS, flags.link, flags.LOCS, flags.BLASLIB, flags.INT);
+eval(cmd);

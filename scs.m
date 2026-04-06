@@ -40,6 +40,8 @@ if (isfield(pars,'use_indirect') && pars.use_indirect)
     [  x, y, s, info  ] = scs_indirect( data, K, pars );
 elseif (isfield(pars,'gpu') && pars.gpu)
     [  x, y, s, info  ] = scs_gpu( data, K, pars );
+elseif (isfield(pars,'dense') && pars.dense)
+    [  x, y, s, info  ] = scs_dense( data, K, pars );
 else
     [  x, y, s, info  ] = scs_direct( data, K, pars );
 end
