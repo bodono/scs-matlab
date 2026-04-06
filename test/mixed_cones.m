@@ -20,8 +20,19 @@ classdef mixed_cones < matlab.unittest.TestCase
             ns = ns_dim * (ns_dim + 1) / 2;
             m = nz + nl + nq + ns;
             testCase.data.A = sparse(randn(m, n));
-            testCase.data.b = randn(m, 1);
             testCase.data.c = randn(n, 1);
+            % Construct feasible b = A*x_feas + s_feas
+            x_feas = randn(n, 1);
+            s_feas = zeros(m, 1);
+            % zero cone: s = 0
+            % LP cone: s > 0
+            s_feas(nz+1:nz+nl) = ones(nl, 1);
+            % SOC: s_0 > ||s_rest||
+            s_feas(nz+nl+1) = 2;
+            s_feas(nz+nl+2:nz+nl+nq) = 0.5 * ones(nq-1, 1);
+            % SDP (2x2): s = svec(I) = [1; 0; 1]
+            s_feas(nz+nl+nq+1:m) = [1; 0; 1];
+            testCase.data.b = testCase.data.A * x_feas + s_feas;
             testCase.cones.z = nz;
             testCase.cones.l = nl;
             testCase.cones.q = nq;

@@ -16,8 +16,12 @@ classdef sdp < matlab.unittest.TestCase
             m = sd * (sd + 1) / 2;
             n = 4;
             testCase.data.A = sparse(randn(m, n));
-            testCase.data.b = randn(m, 1);
             testCase.data.c = randn(n, 1);
+            % Construct feasible b = A*x_feas + s_feas
+            x_feas = randn(n, 1);
+            % s_feas = svec(I_3): scaled lower triangle of identity
+            s_feas = [1; 0; 0; 1; 0; 1];
+            testCase.data.b = testCase.data.A * x_feas + s_feas;
             testCase.cones.s = sd;
         end
     end

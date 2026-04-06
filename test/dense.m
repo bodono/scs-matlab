@@ -36,7 +36,7 @@ classdef dense < matlab.unittest.TestCase
 
         function test_dense_qp(testCase)
             rng(5678)
-            n = 5;
+            n = size(testCase.data.c, 1);
             P = randn(n, n);
             P = P * P';
             testCase.data.P = sparse(P);
