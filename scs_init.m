@@ -1,11 +1,18 @@
-function [ x, y, s, info ] = scs( varargin )
-% scs 3.2.5
-% for version call: scs_version()
-data = varargin{1};
-K = varargin{2};
-if nargin >= 3
-    pars = varargin{3};
-else
+function work = scs_init(data, K, pars)
+% SCS_INIT  Initialize SCS workspace for repeated solves.
+%
+%   work = scs_init(data, K, pars)
+%
+%   Factorizes A (and P if present) and returns a workspace handle.
+%   Use scs_solve(work) to solve, scs_update(work, b, c) to change
+%   b/c without re-factorizing, and scs_finish(work) to free memory.
+%
+%   This is useful when solving a sequence of problems where only b
+%   and/or c change, avoiding repeated factorization.
+%
+%   See also: scs_solve, scs_update, scs_finish, scs
+
+if nargin < 3
     pars = [];
 end
 
@@ -37,11 +44,16 @@ if isfield(data, 'P')
 end
 
 if (isfield(pars,'use_indirect') && pars.use_indirect)
-    [  x, y, s, info  ] = scs_indirect( data, K, pars );
+    work.backend = 'scs_indirect';
 elseif (isfield(pars,'gpu') && pars.gpu)
-    [  x, y, s, info  ] = scs_gpu( data, K, pars );
+    work.backend = 'scs_gpu';
 elseif (isfield(pars,'dense') && pars.dense)
-    [  x, y, s, info  ] = scs_dense( data, K, pars );
+    work.backend = 'scs_dense';
 else
-    [  x, y, s, info  ] = scs_direct( data, K, pars );
+    work.backend = 'scs_direct';
 end
+
+work.n = size(data.A, 2);
+work.m = size(data.A, 1);
+
+feval(work.backend, 'init', data, K, pars);

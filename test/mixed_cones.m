@@ -21,7 +21,8 @@ classdef mixed_cones < matlab.unittest.TestCase
             m = nz + nl + nq + ns;
             testCase.data.A = sparse(randn(m, n));
             testCase.data.c = randn(n, 1);
-            % Construct feasible b = A*x_feas + s_feas
+            % Construct b so the problem is provably feasible:
+            % pick x_feas, set s_feas in cone interior, b = A*x + s
             x_feas = randn(n, 1);
             s_feas = zeros(m, 1);
             % zero cone: s = 0

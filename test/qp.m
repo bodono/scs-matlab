@@ -1,4 +1,4 @@
-classdef sdp < matlab.unittest.TestCase
+classdef qp < matlab.unittest.TestCase
 
     properties
         data
@@ -12,23 +12,20 @@ classdef sdp < matlab.unittest.TestCase
     methods(TestMethodSetup)
         function setup_problem(testCase)
             rng(1234)
-            sd = 3;
-            m = sd * (sd + 1) / 2; % = 6
-            n = 4;
+            n = 5;
+            m = 10;
+            P = randn(n, n);
+            P = P * P';
             testCase.data.A = sparse(randn(m, n));
+            testCase.data.P = sparse(P);
+            testCase.data.b = randn(m, 1);
             testCase.data.c = randn(n, 1);
-            testCase.cones.s = sd;
-            % Construct feasible b = A*x_feas + s_feas
-            x_feas = randn(n, 1);
-            % s_feas = svec(I_3): scaled lower triangle of identity
-            % [1, 0, 0; 0, 1, 0; 0, 0, 1] -> [1; 0; 0; 1; 0; 1]
-            s_feas = [1; 0; 0; 1; 0; 1];
-            testCase.data.b = testCase.data.A * x_feas + s_feas;
+            testCase.cones.l = m;
         end
     end
 
     methods (Test)
-        function test_sdp(testCase, use_indirect)
+        function test_qp(testCase, use_indirect)
             pars.use_indirect = use_indirect;
             pars.verbose = 0;
             [x,y,s,info] = scs(testCase.data,testCase.cones,pars);
@@ -41,6 +38,17 @@ classdef sdp < matlab.unittest.TestCase
             [~,~,~,info] = scs(testCase.data,testCase.cones,pars);
             testCase.verifyEqual(info.status, 'solved')
             testCase.verifyLessThanOrEqual(info.iter, 25)
+        end
+
+        function test_qp_lower_triangular_P(testCase, use_indirect)
+            % scs.m should handle lower triangular P via symmetrization
+            pars.use_indirect = use_indirect;
+            pars.verbose = 0;
+            % Pass only the lower triangle of the symmetric P
+            P_lower = tril(testCase.data.P);
+            testCase.data.P = sparse(P_lower);
+            [~,~,~,info] = scs(testCase.data,testCase.cones,pars);
+            testCase.verifyEqual(info.status, 'solved')
         end
     end
 end
