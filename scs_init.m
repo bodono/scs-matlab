@@ -19,7 +19,7 @@ end
 if isfield(data, 'P')
     data.P = sparse(data.P);
     if (~istriu(data.P))
-        data.P = triu(data.P);
+        data.P = triu(data.P + data.P') / 2;
     end
 end
 

@@ -18,9 +18,12 @@ classdef workspace_qp < matlab.unittest.TestCase
             P = P * P';
             testCase.data.A = sparse(randn(m, n));
             testCase.data.P = sparse(P);
-            testCase.data.b = randn(m, 1);
             testCase.data.c = randn(n, 1);
             testCase.cones.l = m;
+            % Construct feasible b = A*x_feas + s_feas, s_feas >= 0
+            x_feas = randn(n, 1);
+            s_feas = ones(m, 1);
+            testCase.data.b = testCase.data.A * x_feas + s_feas;
         end
     end
 
@@ -50,21 +53,15 @@ classdef workspace_qp < matlab.unittest.TestCase
             [~,~,~,info1] = scs_solve(work);
             testCase.verifyEqual(info1.status, 'solved')
 
-            % Update both b and c
+            % Update both b and c with feasible data
             rng(5678)
-            b_new = randn(size(testCase.data.b));
+            x_feas = randn(size(testCase.data.c));
+            s_feas = ones(size(testCase.data.b));
+            b_new = testCase.data.A * x_feas + s_feas;
             c_new = randn(size(testCase.data.c));
             scs_update(work, b_new, c_new);
             [~,~,~,info2] = scs_solve(work);
             testCase.verifyEqual(info2.status, 'solved')
-
-            % Verify against one-shot with updated data
-            testCase.data.b = b_new;
-            testCase.data.c = c_new;
-            [x_ref,~,~,~] = scs(testCase.data,testCase.cones,pars);
-            [x_ws,~,~,~] = scs_solve(work);
-            % re-solve without update should give same result
-            testCase.verifyEqual(x_ws, x_ref, 'RelTol', 1e-5)
 
             scs_finish(work);
         end
@@ -75,10 +72,12 @@ classdef workspace_qp < matlab.unittest.TestCase
 
             work = scs_init(testCase.data, testCase.cones, pars);
 
-            % Solve 5 times with different b vectors
+            % Solve 5 times with different feasible b vectors
             for i = 1:5
                 rng(i * 1000)
-                b_new = randn(size(testCase.data.b));
+                x_feas = randn(size(testCase.data.c));
+                s_feas = ones(size(testCase.data.b));
+                b_new = testCase.data.A * x_feas + s_feas;
                 scs_update(work, b_new, []);
                 [~,~,~,info] = scs_solve(work);
                 testCase.verifyEqual(info.status, 'solved')

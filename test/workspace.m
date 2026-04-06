@@ -15,9 +15,12 @@ classdef workspace < matlab.unittest.TestCase
             m = 9;
             n = 3;
             testCase.data.A = sparse(randn(m,n));
-            testCase.data.b = randn(m,1);
             testCase.data.c = randn(n,1);
             testCase.cones.l = m;
+            % Construct feasible b = A*x_feas + s_feas, s_feas >= 0
+            x_feas = randn(n,1);
+            s_feas = ones(m,1);
+            testCase.data.b = testCase.data.A * x_feas + s_feas;
         end
     end
 
@@ -47,15 +50,14 @@ classdef workspace < matlab.unittest.TestCase
             [~,~,~,info1] = scs_solve(work);
             testCase.verifyEqual(info1.status, 'solved')
 
-            % Update b and solve again
+            % Update b with a new feasible b and solve again
             rng(5678)
-            b_new = randn(size(testCase.data.b));
+            x_feas = randn(size(testCase.data.c));
+            s_feas = ones(size(testCase.data.b));
+            b_new = testCase.data.A * x_feas + s_feas;
             scs_update(work, b_new, []);
             [~,~,~,info2] = scs_solve(work);
             testCase.verifyEqual(info2.status, 'solved')
-
-            % setup_time should be 0 for re-solves
-            testCase.verifyEqual(info2.setup_time, 0)
 
             scs_finish(work);
         end

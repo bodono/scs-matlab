@@ -12,7 +12,8 @@ classdef unbounded < matlab.unittest.TestCase
     methods(TestMethodSetup)
         function setup_problem(testCase)
             % Unbounded LP: min -x s.t. x >= 0
-            testCase.data.A = sparse([1]);
+            % Ax + s = b, s >= 0: -x + s = 0 => s = x >= 0
+            testCase.data.A = sparse([-1]);
             testCase.data.b = [0];
             testCase.data.c = [-1];
             testCase.cones.l = 1;

@@ -41,12 +41,12 @@ classdef qp < matlab.unittest.TestCase
         end
 
         function test_qp_lower_triangular_P(testCase, use_indirect)
-            % scs.m should extract upper triangle from symmetric P
+            % scs.m should handle lower triangular P via symmetrization
             pars.use_indirect = use_indirect;
             pars.verbose = 0;
-            % Pass full symmetric P (not upper triangular)
-            P_full = testCase.data.P + tril(testCase.data.P, -1)';
-            testCase.data.P = sparse(P_full);
+            % Pass only the lower triangle of the symmetric P
+            P_lower = tril(testCase.data.P);
+            testCase.data.P = sparse(P_lower);
             [~,~,~,info] = scs(testCase.data,testCase.cones,pars);
             testCase.verifyEqual(info.status, 'solved')
         end
