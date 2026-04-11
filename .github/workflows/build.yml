@@ -41,7 +41,7 @@ jobs:
         with:
           name: mex-${{ matrix.os }}
           path: |
-            *.mex*
+            matlab/*.mex*
             !*.prj
             !*.mltbx
 
@@ -58,7 +58,7 @@ jobs:
         uses: actions/download-artifact@v4
         with:
           merge-multiple: true
-          path: ./
+          path: matlab/
 
       - name: Set up MATLAB
         uses: matlab-actions/setup-matlab@v3
