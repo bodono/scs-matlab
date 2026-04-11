@@ -1,0 +1,113 @@
+<?xml version="1.0" encoding="utf-8"?>
+<deployment-project plugin="plugin.toolbox" plugin-version="1.0">
+  <configuration file="${PROJECT_ROOT}/scs.prj" location="${PROJECT_ROOT}" name="scs" target="target.toolbox" target-name="Package Toolbox">
+    <param.appname>SCS</param.appname>
+    <param.authnamewatermark>Brendan O'Donoghue</param.authnamewatermark>
+    <param.email>bodonoghue85@gmail.com</param.email>
+    <param.company />
+    <param.summary>Splitting Conic Solver for MATLAB</param.summary>
+    <param.description>SCS (splitting conic solver) is a numerical optimization package for solving large-scale convex cone problems, based on the paper "Conic Optimization via Operator Splitting and Homogeneous Self-Dual Embedding" by O'Donoghue, Chu, Parikh, and Boyd.</param.description>
+    <param.screenshot />
+    <param.version>3.2.5</param.version>
+    <param.output>${PROJECT_ROOT}/SCS.mltbx</param.output>
+    <param.products.name>
+      <item>MATLAB</item>
+    </param.products.name>
+    <param.products.id>
+      <item>1</item>
+    </param.products.id>
+    <param.products.version>
+      <item>9.13</item>
+    </param.products.version>
+    <param.platforms />
+    <param.guid>9fe2fe4d-165e-4d2d-8511-91bcef1583b0</param.guid>
+    <param.exclude.filters>% List of file/folder patterns to exclude from packaging
+.git
+.github
+.gitmodules
+.bumpversion.cfg
+*.mltbx
+*.prj
+test/
+</param.exclude.filters>
+    <param.exclude.pccodedmfiles>true</param.exclude.pccodedmfiles>
+    <param.examples />
+    <param.demosxml />
+    <param.apps />
+    <param.registered.apps />
+    <param.docs />
+    <param.getting.started.guide />
+    <param.matlabpath.excludes />
+    <param.javaclasspath.excludes />
+    <param.exported.on.package>false</param.exported.on.package>
+    <param.release.start />
+    <param.release.end />
+    <param.release.current.only>false</param.release.current.only>
+    <param.compatiblity.windows>true</param.compatiblity.windows>
+    <param.compatiblity.macos>true</param.compatiblity.macos>
+    <param.compatiblity.linux>true</param.compatiblity.linux>
+    <param.compatiblity.matlabonline>true</param.compatiblity.matlabonline>
+    <param.installation.map>
+      <use.CurrentDirectory>true</use.CurrentDirectory>
+    </param.installation.map>
+    <param.additional.sw.names />
+    <param.additional.sw.contact.emails />
+    <param.additional.sw.update.urls />
+    <param.webservice.rficommon>false</param.webservice.rficommon>
+    <unset>
+      <param.company />
+      <param.screenshot />
+      <param.platforms />
+      <param.exclude.pccodedmfiles />
+      <param.examples />
+      <param.demosxml />
+      <param.apps />
+      <param.registered.apps />
+      <param.docs />
+      <param.getting.started.guide />
+      <param.matlabpath.excludes />
+      <param.javaclasspath.excludes />
+      <param.exported.on.package />
+      <param.release.start />
+      <param.release.end />
+      <param.release.current.only />
+      <param.compatiblity.windows />
+      <param.compatiblity.macos />
+      <param.compatiblity.linux />
+      <param.compatiblity.matlabonline />
+      <param.additional.sw.names />
+      <param.additional.sw.contact.emails />
+      <param.additional.sw.update.urls />
+      <param.webservice.rficommon />
+    </unset>
+    <fileset.rootdir>
+      <file>${PROJECT_ROOT}</file>
+    </fileset.rootdir>
+    <fileset.depfun />
+    <fileset.resources />
+    <fileset.package />
+    <build-deliverables>
+      <file location="${PROJECT_ROOT}" name="SCS.mltbx" optional="false">${PROJECT_ROOT}/SCS.mltbx</file>
+    </build-deliverables>
+    <workflow />
+    <matlab>
+      <root>/Applications/MATLAB_R2022b.app</root>
+      <toolboxes />
+    </matlab>
+    <platform>
+      <unix>true</unix>
+      <mac>true</mac>
+      <windows>false</windows>
+      <win2k>false</win2k>
+      <winxp>false</winxp>
+      <vista>false</winxp>
+      <win7>false</win7>
+      <win8>false</win8>
+      <win81>false</win81>
+      <win10>false</win10>
+      <win11>false</win11>
+      <arch>maci64</arch>
+      <matlab>true</matlab>
+    </platform>
+  </configuration>
+</deployment-project>
