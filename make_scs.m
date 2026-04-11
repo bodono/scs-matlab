@@ -71,6 +71,7 @@ end
 compile_direct(flags, common_scs);
 compile_indirect(flags, common_scs);
 compile_dense(flags, common_scs);
+compile_matlab_direct(flags, common_scs);
 if (gpu)
     compile_gpu(flags, common_scs);
 end
