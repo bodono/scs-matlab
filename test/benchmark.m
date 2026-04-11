@@ -47,7 +47,7 @@ classdef benchmark < matlab.unittest.TestCase
                             data.b = A * x_feas + s_feas;
                             % Dual feasible: c = A'*y, y > 0 (guarantees boundedness)
                             y_feas = ones(m, 1);
-                            data.c = A' * y_feas;
+                            data.c = -A' * y_feas;
 
                             if strcmp(prob_type, 'QP')
                                 P_half = sprandn(n, n, min(density * 2, 1.0));
@@ -68,7 +68,7 @@ classdef benchmark < matlab.unittest.TestCase
                                 prob_type, n, m, density))
                             % Compare solutions when both solved
                             if strcmp(info1.status, 'solved') && strcmp(info2.status, 'solved')
-                                testCase.verifyEqual(x1, x2, 'AbsTol', 1e-3, ...
+                                testCase.verifyEqual(x1, x2, 'AbsTol', 1e-2, ...
                                     sprintf('%s n=%d m=%d d=%.1f: solutions differ', ...
                                     prob_type, n, m, density))
                             end

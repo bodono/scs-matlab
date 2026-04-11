@@ -16,7 +16,7 @@ classdef matlab_ldl < matlab.unittest.TestCase
             data.b = data.A * x_feas + s_feas;
             % Dual feasible: c = A'*y, y > 0  (guarantees boundedness)
             y_feas = ones(m, 1);
-            data.c = data.A' * y_feas;
+            data.c = -data.A' * y_feas;
 
             pars.verbose = 0;
             [x1, y1, ~, info1] = scs(data, K, pars);
@@ -76,7 +76,7 @@ classdef matlab_ldl < matlab.unittest.TestCase
             y_feas = zeros(q_size, 1);
             y_feas(2:end) = 0.5 * ones(q_size - 1, 1);
             y_feas(1) = 2 * norm(y_feas(2:end));
-            data.c = data.A' * y_feas;
+            data.c = -data.A' * y_feas;
 
             pars.verbose = 0;
             [x1, y1, ~, info1] = scs(data, K, pars);
@@ -102,7 +102,7 @@ classdef matlab_ldl < matlab.unittest.TestCase
             s_feas = ones(m, 1);
             data.b = data.A * x_feas + s_feas;
             y_feas = ones(m, 1);
-            data.c = data.A' * y_feas;
+            data.c = -data.A' * y_feas;
 
             pars_default = struct('verbose', 0);
             pars_qdldl = struct('verbose', 0, 'use_qdldl', true);
@@ -153,7 +153,7 @@ classdef matlab_ldl < matlab.unittest.TestCase
             y_feas(1:m_lp) = ones(m_lp, 1);
             y_feas(m_lp + 2:m) = 0.5 * ones(m_soc - 1, 1);
             y_feas(m_lp + 1) = 2 * norm(y_feas(m_lp + 2:m));
-            data.c = data.A' * y_feas;
+            data.c = -data.A' * y_feas;
 
             pars.verbose = 0;
             [x1, y1, ~, info1] = scs(data, K, pars);
