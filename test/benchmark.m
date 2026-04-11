@@ -5,9 +5,9 @@ classdef benchmark < matlab.unittest.TestCase
 
     methods (Test)
         function test_benchmark(testCase)
-            ns = [10, 50, 100, 200];
+            ns = [100, 500, 1000, 2000];
             m_ratios = [3, 5];
-            densities = [0.1, 0.5, 1.0];
+            densities = [0.01, 0.05, 0.1];
             types = {'LP', 'QP'};
 
             n_configs = length(ns) * length(m_ratios) * length(densities) * length(types);
