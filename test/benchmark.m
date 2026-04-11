@@ -32,16 +32,20 @@ classdef benchmark < matlab.unittest.TestCase
                             % Deterministic seed per config
                             rng(n * 1000 + m * 10 + round(density * 100) + ti)
 
-                            % Build problem
+                            % Build problem with guaranteed feasibility
                             if density >= 1.0
                                 A = sparse(randn(m, n));
                             else
                                 A = sprandn(m, n, density);
                             end
                             data.A = A;
-                            data.b = randn(m, 1);
                             data.c = randn(n, 1);
                             K.l = m;
+
+                            % Feasible b: b = A*x_feas + s_feas, s_feas > 0
+                            x_feas = randn(n, 1);
+                            s_feas = ones(m, 1);
+                            data.b = A * x_feas + s_feas;
 
                             if strcmp(prob_type, 'QP')
                                 P_half = sprandn(n, n, min(density * 2, 1.0));

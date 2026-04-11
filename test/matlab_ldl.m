@@ -9,9 +9,11 @@ classdef matlab_ldl < matlab.unittest.TestCase
             rng(1234)
             m = 50; n = 20;
             data.A = sparse(randn(m, n));
-            data.b = randn(m, 1);
             data.c = randn(n, 1);
             K.l = m;
+            x_feas = randn(n, 1);
+            s_feas = ones(m, 1);
+            data.b = data.A * x_feas + s_feas;
 
             pars.verbose = 0;
             [x1, y1, ~, info1] = scs(data, K, pars);
@@ -34,9 +36,11 @@ classdef matlab_ldl < matlab.unittest.TestCase
             P = sparse(P * P');
             data.A = sparse(randn(m, n));
             data.P = P;
-            data.b = randn(m, 1);
             data.c = randn(n, 1);
             K.l = m;
+            x_feas = randn(n, 1);
+            s_feas = ones(m, 1);
+            data.b = data.A * x_feas + s_feas;
 
             pars.verbose = 0;
             [x1, y1, ~, info1] = scs(data, K, pars);
@@ -57,9 +61,14 @@ classdef matlab_ldl < matlab.unittest.TestCase
             n = 10;
             q_size = 15;
             data.A = sparse(randn(q_size, n));
-            data.b = randn(q_size, 1);
             data.c = randn(n, 1);
             K.q = q_size;
+            % Feasible s in SOC: s(1) > ||s(2:end)||
+            x_feas = randn(n, 1);
+            s_feas = zeros(q_size, 1);
+            s_feas(2:end) = 0.5 * ones(q_size - 1, 1);
+            s_feas(1) = 2 * norm(s_feas(2:end));
+            data.b = data.A * x_feas + s_feas;
 
             pars.verbose = 0;
             [x1, y1, ~, info1] = scs(data, K, pars);
@@ -121,10 +130,16 @@ classdef matlab_ldl < matlab.unittest.TestCase
             m_soc = 8;
             m = m_lp + m_soc;
             data.A = sparse(randn(m, n));
-            data.b = randn(m, 1);
             data.c = randn(n, 1);
             K.l = m_lp;
             K.q = m_soc;
+            % Feasible s: LP part > 0, SOC part in cone interior
+            x_feas = randn(n, 1);
+            s_feas = zeros(m, 1);
+            s_feas(1:m_lp) = ones(m_lp, 1);
+            s_feas(m_lp + 2:m) = 0.5 * ones(m_soc - 1, 1);
+            s_feas(m_lp + 1) = 2 * norm(s_feas(m_lp + 2:m));
+            data.b = data.A * x_feas + s_feas;
 
             pars.verbose = 0;
             [x1, y1, ~, info1] = scs(data, K, pars);
