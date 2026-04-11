@@ -30,25 +30,27 @@ common_scs = [ ...
     'scs/src/spectral_cones/sum-largest/sum_largest_eval_cone.c ' ...
     'scs/src/spectral_cones/util_spectral_cones.c ' ...
     'private/scs_mex.c'];
-if (contains(computer, '64'))
+
+if contains(computer, '64')
     flags.arr = '-largeArrayDims';
 else
     flags.arr = '';
 end
 
-if ( isunix && ~ismac )
+if isunix && ~ismac
     flags.link = '-lm -lut -lrt';
-elseif  ( ismac )
+elseif ismac
     flags.link = '-lm -lut';
 else
     flags.link = '-lut';
-    flags.LCFLAG = sprintf('-DNOBLASSUFFIX %s', flags.LCFLAG);
+    flags.LCFLAG = ['-DNOBLASSUFFIX ' flags.LCFLAG];
 end
 
-if (float)
-    flags.LCFLAG = sprintf('-DSFLOAT %s', flags.LCFLAG);
+if float
+    flags.LCFLAG = ['-DSFLOAT ' flags.LCFLAG];
 end
-if (int)
+
+if int
     flags.INT = '';
 else
     flags.INT = '-DDLONG';
@@ -57,27 +59,32 @@ end
 flags.CFLAGS = '';
 flags.COMPFLAGS = '';
 
-if (use_open_mp)
-    flags.link = strcat(flags.link, ' -lgomp');
-    flags.CFLAGS = sprintf('%s /openmp', flags.CFLAGS);
-    flags.COMPFLAGS = sprintf('%s -fopenmp', flags.COMPFLAGS);
+if use_open_mp
+    flags.link = [flags.link ' -lgomp'];
+    flags.CFLAGS = [flags.CFLAGS ' /openmp'];
+    flags.COMPFLAGS = [flags.COMPFLAGS ' -fopenmp'];
 end
 
 % add c99 to handle qldl comments
-if (~ismac() && isunix())
-    flags.CFLAGS = sprintf('%s -std=c99', flags.CFLAGS);
+if isunix && ~ismac
+    flags.CFLAGS = [flags.CFLAGS ' -std=c99'];
 end
 
 compile_direct(flags, common_scs);
 compile_indirect(flags, common_scs);
 compile_dense(flags, common_scs);
 compile_matlab_direct(flags, common_scs);
-if (gpu)
+
+if gpu
     compile_gpu(flags, common_scs);
 end
 
 % compile scs_version
-mex -v -O -Iscs/include -Iscs/linsys scs/src/scs_version.c private/scs_version_mex.c -output scs_version
+cmd = sprintf('mex -v -O -I%s -I%s %s %s -output scs_version', ...
+    fullfile('scs', 'include'), fullfile('scs', 'linsys'), ...
+    fullfile('scs', 'src', 'scs_version.c'), ...
+    fullfile('private', 'scs_version_mex.c'));
+eval(cmd);
 
 addpath(scs_root);
 if savepath ~= 0

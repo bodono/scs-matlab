@@ -1,17 +1,14 @@
-function [ x, y, s, info ] = scs( varargin )
+function [x, y, s, info] = scs(data, K, pars)
 % scs 3.2.5
 % for version call: scs_version()
-data = varargin{1};
-K = varargin{2};
-if nargin >= 3
-    pars = varargin{3};
-else
+
+if nargin < 3
     pars = [];
 end
 
 if isfield(data, 'P')
     data.P = sparse(data.P);
-    if (~istriu(data.P))
+    if ~istriu(data.P)
         data.P = triu(data.P + data.P') / 2;
     end
 end
@@ -36,14 +33,14 @@ if isfield(data, 'P')
     assert(size(data.P, 1) == size(data.c, 1), "P and c shape mismatch")
 end
 
-if (isfield(pars,'use_indirect') && pars.use_indirect)
-    [  x, y, s, info  ] = scs_indirect( data, K, pars );
-elseif (isfield(pars,'gpu') && pars.gpu)
-    [  x, y, s, info  ] = scs_gpu( data, K, pars );
-elseif (isfield(pars,'dense') && pars.dense)
-    [  x, y, s, info  ] = scs_dense( data, K, pars );
-elseif (isfield(pars,'use_qdldl') && pars.use_qdldl)
-    [  x, y, s, info  ] = scs_direct( data, K, pars );
+if isfield(pars, 'use_indirect') && pars.use_indirect
+    [x, y, s, info] = scs_indirect(data, K, pars);
+elseif isfield(pars, 'gpu') && pars.gpu
+    [x, y, s, info] = scs_gpu(data, K, pars);
+elseif isfield(pars, 'dense') && pars.dense
+    [x, y, s, info] = scs_dense(data, K, pars);
+elseif isfield(pars, 'use_qdldl') && pars.use_qdldl
+    [x, y, s, info] = scs_direct(data, K, pars);
 else
-    [  x, y, s, info  ] = scs_matlab_direct( data, K, pars );
+    [x, y, s, info] = scs_matlab_direct(data, K, pars);
 end

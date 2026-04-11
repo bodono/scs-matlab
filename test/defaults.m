@@ -26,6 +26,8 @@ classdef defaults < matlab.unittest.TestCase
             % Call scs with only 2 arguments (no params struct)
             [~,~,~,info] = scs(testCase.data,testCase.cones);
             testCase.verifyEqual(info.status, 'solved')
+            % Verify that the default solver is MATLAB's LDL
+            testCase.verifyEqual(info.lin_sys_solver, 'sparse-direct-matlab-ldl')
         end
 
         function test_empty_params(testCase)

@@ -18,7 +18,7 @@ end
 
 if isfield(data, 'P')
     data.P = sparse(data.P);
-    if (~istriu(data.P))
+    if ~istriu(data.P)
         data.P = triu(data.P + data.P') / 2;
     end
 end
@@ -43,13 +43,13 @@ if isfield(data, 'P')
     assert(size(data.P, 1) == size(data.c, 1), "P and c shape mismatch")
 end
 
-if (isfield(pars,'use_indirect') && pars.use_indirect)
+if isfield(pars, 'use_indirect') && pars.use_indirect
     work.backend = 'scs_indirect';
-elseif (isfield(pars,'gpu') && pars.gpu)
+elseif isfield(pars, 'gpu') && pars.gpu
     work.backend = 'scs_gpu';
-elseif (isfield(pars,'dense') && pars.dense)
+elseif isfield(pars, 'dense') && pars.dense
     work.backend = 'scs_dense';
-elseif (isfield(pars,'use_qdldl') && pars.use_qdldl)
+elseif isfield(pars, 'use_qdldl') && pars.use_qdldl
     work.backend = 'scs_direct';
 else
     work.backend = 'scs_matlab_direct';
