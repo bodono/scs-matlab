@@ -27,51 +27,159 @@ static mxArray *scs_to_mxsparse(const ScsMatrix *M) {
   return mx;
 }
 
-/* Symmetrize an upper-triangular sparse matrix: K_sym = K + triu(K,1)'.
- * Returns a new mxArray (caller must destroy). Destroys K_upper. */
-static mxArray *symmetrize_upper(mxArray *K_upper) {
-  mxArray *triu_rhs[2], *K_strict, *K_strict_t, *plus_rhs[2], *K_sym;
+/* Extract L factor from MATLAB sparse mxArray into C ScsMatrix.
+ * MATLAB's ldl returns L with unit diagonal stored; we strip the diagonal
+ * to match QDLDL convention (only strictly lower-triangular entries). */
+static scs_int extract_L(ScsLinSysWork *p, const mxArray *L_mx) {
+  scs_int n_plus_m = p->n + p->m;
+  mwIndex *jc = mxGetJc(L_mx);
+  mwIndex *ir = mxGetIr(L_mx);
+  double *pr = mxGetPr(L_mx);
+  scs_int j, nnz_nodiag;
+  mwIndex k;
 
-  /* K_strict = triu(K_upper, 1)  — strict upper triangle */
-  triu_rhs[0] = K_upper;
-  triu_rhs[1] = mxCreateDoubleScalar(1.0);
-  mexCallMATLAB(1, &K_strict, 2, triu_rhs, "triu");
-  mxDestroyArray(triu_rhs[1]);
-
-  /* K_strict_t = K_strict' */
-  mexCallMATLAB(1, &K_strict_t, 1, &K_strict, "ctranspose");
-  mxDestroyArray(K_strict);
-
-  /* K_sym = K_upper + K_strict_t */
-  plus_rhs[0] = K_upper;
-  plus_rhs[1] = K_strict_t;
-  mexCallMATLAB(1, &K_sym, 2, plus_rhs, "plus");
-  mxDestroyArray(K_strict_t);
-  mxDestroyArray(K_upper);
-
-  return K_sym;
-}
-
-/* Build full symmetric KKT matrix and store as persistent mxArray.
- * Destroys any prior stored matrix. */
-static scs_int matlab_build_kkt(ScsLinSysWork *p) {
-  mxArray *K_upper;
-
-  if (p->K_sym) {
-    mxDestroyArray(p->K_sym);
-    p->K_sym = SCS_NULL;
+  /* Count non-diagonal entries */
+  nnz_nodiag = 0;
+  for (j = 0; j < n_plus_m; j++) {
+    for (k = jc[j]; k < jc[j + 1]; k++) {
+      if ((scs_int)ir[k] != j) {
+        nnz_nodiag++;
+      }
+    }
   }
 
-  /* Convert C-level KKT (upper triangle CSC) to MATLAB sparse */
-  K_upper = scs_to_mxsparse(p->kkt);
+  /* Free old L if present */
+  if (p->L) {
+    SCS(cs_spfree)(p->L);
+  }
 
-  /* Symmetrize: K_sym = K + triu(K,1)' */
-  p->K_sym = symmetrize_upper(K_upper);
-  /* K_upper is destroyed inside symmetrize_upper */
+  /* Allocate new L */
+  p->L = (ScsMatrix *)scs_calloc(1, sizeof(ScsMatrix));
+  if (!p->L) {
+    return -1;
+  }
+  p->L->m = n_plus_m;
+  p->L->n = n_plus_m;
+  p->L->p = (scs_int *)scs_calloc(n_plus_m + 1, sizeof(scs_int));
+  p->L->i = (scs_int *)scs_calloc(nnz_nodiag, sizeof(scs_int));
+  p->L->x = (scs_float *)scs_calloc(nnz_nodiag, sizeof(scs_float));
 
-  mexMakeArrayPersistent(p->K_sym);
+  /* Fill L, skipping diagonal entries */
+  {
+    scs_int write_idx = 0;
+    for (j = 0; j < n_plus_m; j++) {
+      p->L->p[j] = write_idx;
+      for (k = jc[j]; k < jc[j + 1]; k++) {
+        if ((scs_int)ir[k] != j) {
+          p->L->i[write_idx] = (scs_int)ir[k];
+          p->L->x[write_idx] = (scs_float)pr[k];
+          write_idx++;
+        }
+      }
+    }
+    p->L->p[n_plus_m] = write_idx;
+  }
+  return 0;
+}
+
+/* Extract inverse of diagonal D from MATLAB sparse mxArray.
+ * With ldl(K, 0, 'vector'), D is guaranteed to be diagonal (no 2x2 blocks). */
+static scs_int extract_Dinv(ScsLinSysWork *p, const mxArray *D_mx) {
+  scs_int n_plus_m = p->n + p->m;
+  mwIndex *jc = mxGetJc(D_mx);
+  mwIndex *ir = mxGetIr(D_mx);
+  double *pr = mxGetPr(D_mx);
+  scs_int j;
+  mwIndex k;
+
+  for (j = 0; j < n_plus_m; j++) {
+    p->Dinv[j] = 0.0;
+    for (k = jc[j]; k < jc[j + 1]; k++) {
+      if ((scs_int)ir[k] == j) {
+        p->Dinv[j] = (scs_float)(1.0 / pr[k]);
+        break;
+      }
+    }
+  }
+  return 0;
+}
+
+/* Extract permutation vector from MATLAB double array to 0-indexed C array. */
+static void extract_perm(ScsLinSysWork *p, const mxArray *perm_mx) {
+  scs_int n_plus_m = p->n + p->m;
+  double *pr = mxGetPr(perm_mx);
+  scs_int i;
+
+  for (i = 0; i < n_plus_m; i++) {
+    p->perm[i] = (scs_int)(pr[i] - 1); /* MATLAB 1-indexed to C 0-indexed */
+  }
+}
+
+/* Factorize KKT matrix using MATLAB's ldl().
+ * Calls [L, D, perm] = ldl(K, 0, 'vector') and extracts factors into C.
+ * The upper-triangular KKT is passed directly (ldl only reads upper triangle).
+ * thresh=0 disables Bunch-Kaufman pivoting so D is purely diagonal. */
+static scs_int matlab_ldl_factor(ScsLinSysWork *p) {
+  mxArray *K_mx, *rhs[3], *lhs[3];
+
+  /* Convert C KKT (upper triangular CSC) to MATLAB sparse */
+  K_mx = scs_to_mxsparse(p->kkt);
+
+  /* [L, D, perm] = ldl(K, 0, 'vector') */
+  rhs[0] = K_mx;
+  rhs[1] = mxCreateDoubleScalar(0.0);
+  rhs[2] = mxCreateString("vector");
+
+  if (mexCallMATLAB(3, lhs, 3, rhs, "ldl") != 0) {
+    scs_printf("Error in MATLAB ldl() factorization.\n");
+    mxDestroyArray(K_mx);
+    mxDestroyArray(rhs[1]);
+    mxDestroyArray(rhs[2]);
+    return -1;
+  }
+
+  /* Extract factors into C arrays */
+  extract_L(p, lhs[0]);
+  extract_Dinv(p, lhs[1]);
+  extract_perm(p, lhs[2]);
+
+  /* Clean up all MATLAB temporaries */
+  mxDestroyArray(K_mx);
+  mxDestroyArray(rhs[1]);
+  mxDestroyArray(rhs[2]);
+  mxDestroyArray(lhs[0]);
+  mxDestroyArray(lhs[1]);
+  mxDestroyArray(lhs[2]);
+
   p->factorizations++;
   return 0;
+}
+
+/* Forward solve: (L + I) * x = b, where L is strictly lower-triangular.
+ * Overwrites b with the solution. */
+static void forward_solve(scs_int n, const scs_int *Lp, const scs_int *Li,
+                          const scs_float *Lx, scs_float *x) {
+  scs_int i, j;
+  for (i = 0; i < n; i++) {
+    scs_float val = x[i];
+    for (j = Lp[i]; j < Lp[i + 1]; j++) {
+      x[Li[j]] -= Lx[j] * val;
+    }
+  }
+}
+
+/* Backward solve: (L + I)' * x = b, where L is strictly lower-triangular.
+ * Overwrites b with the solution. */
+static void backward_solve(scs_int n, const scs_int *Lp, const scs_int *Li,
+                           const scs_float *Lx, scs_float *x) {
+  scs_int i, j;
+  for (i = n - 1; i >= 0; i--) {
+    scs_float val = x[i];
+    for (j = Lp[i]; j < Lp[i + 1]; j++) {
+      val -= Lx[j] * x[Li[j]];
+    }
+    x[i] = val;
+  }
 }
 
 ScsLinSysWork *scs_init_lin_sys_work(const ScsMatrix *A, const ScsMatrix *P,
@@ -86,7 +194,10 @@ ScsLinSysWork *scs_init_lin_sys_work(const ScsMatrix *A, const ScsMatrix *P,
   p->m = A->m;
   p->diag_p = (scs_float *)scs_calloc(A->n, sizeof(scs_float));
   p->diag_r_idxs = (scs_int *)scs_calloc(n_plus_m, sizeof(scs_int));
-  p->K_sym = SCS_NULL;
+  p->L = SCS_NULL;
+  p->Dinv = (scs_float *)scs_calloc(n_plus_m, sizeof(scs_float));
+  p->perm = (scs_int *)scs_calloc(n_plus_m, sizeof(scs_int));
+  p->bp = (scs_float *)scs_calloc(n_plus_m, sizeof(scs_float));
   p->factorizations = 0;
 
   /* Form upper-triangular KKT matrix */
@@ -97,9 +208,9 @@ ScsLinSysWork *scs_init_lin_sys_work(const ScsMatrix *A, const ScsMatrix *P,
     return SCS_NULL;
   }
 
-  /* Build symmetric MATLAB sparse matrix */
-  if (matlab_build_kkt(p) < 0) {
-    scs_printf("Error building MATLAB KKT matrix.\n");
+  /* Factorize via MATLAB's ldl and cache factors in C */
+  if (matlab_ldl_factor(p) < 0) {
+    scs_printf("Error in initial LDL factorization.\n");
     scs_free_lin_sys_work(p);
     return SCS_NULL;
   }
@@ -107,57 +218,53 @@ ScsLinSysWork *scs_init_lin_sys_work(const ScsMatrix *A, const ScsMatrix *P,
   return p;
 }
 
-/* Solves the KKT system using MATLAB's backslash: x = K_sym \ b.
+/* Solve the KKT system using cached LDL factors.
+ * Solves P'*L*D*L'*P * x = b where P is the fill-reducing permutation.
  * Solution overwrites b. */
 scs_int scs_solve_lin_sys(ScsLinSysWork *p, scs_float *b, const scs_float *s,
                           scs_float tol) {
   scs_int n_plus_m = p->n + p->m;
-  mxArray *b_mx, *rhs[2], *x_mx;
-  double *b_pr, *x_pr;
   scs_int i;
 
-  /* Create MATLAB dense vector from b */
-  b_mx = mxCreateDoubleMatrix((mwSize)n_plus_m, 1, mxREAL);
-  b_pr = mxGetPr(b_mx);
+  /* Permute: bp = b(perm) */
   for (i = 0; i < n_plus_m; i++) {
-    b_pr[i] = (double)b[i];
+    p->bp[i] = b[p->perm[i]];
   }
 
-  /* x = K_sym \ b */
-  rhs[0] = p->K_sym;
-  rhs[1] = b_mx;
-  if (mexCallMATLAB(1, &x_mx, 2, rhs, "mldivide") != 0) {
-    scs_printf("Error in K \\ b.\n");
-    mxDestroyArray(b_mx);
-    return -1;
-  }
-  mxDestroyArray(b_mx);
+  /* Forward solve: L * y = bp */
+  forward_solve(n_plus_m, p->L->p, p->L->i, p->L->x, p->bp);
 
-  /* Copy result back into b */
-  x_pr = mxGetPr(x_mx);
+  /* Diagonal solve: D * z = y */
   for (i = 0; i < n_plus_m; i++) {
-    b[i] = (scs_float)x_pr[i];
+    p->bp[i] *= p->Dinv[i];
   }
-  mxDestroyArray(x_mx);
+
+  /* Backward solve: L' * x = z */
+  backward_solve(n_plus_m, p->L->p, p->L->i, p->L->x, p->bp);
+
+  /* Inverse permute: b(perm) = bp */
+  for (i = 0; i < n_plus_m; i++) {
+    b[p->perm[i]] = p->bp[i];
+  }
 
   return 0;
 }
 
-/* Update diagonal of R in the KKT matrix and rebuild MATLAB matrix */
+/* Update diagonal of R in the KKT matrix and refactorize. */
 scs_int scs_update_lin_sys_diag_r(ScsLinSysWork *p, const scs_float *diag_r) {
   scs_int i;
 
   for (i = 0; i < p->n; ++i) {
-    /* top left is R_x + P */
+    /* top left: R_x + P */
     p->kkt->x[p->diag_r_idxs[i]] = p->diag_p[i] + diag_r[i];
   }
   for (i = p->n; i < p->n + p->m; ++i) {
-    /* bottom right is -R_y */
+    /* bottom right: -R_y */
     p->kkt->x[p->diag_r_idxs[i]] = -diag_r[i];
   }
 
-  if (matlab_build_kkt(p) < 0) {
-    scs_printf("Error rebuilding MATLAB KKT matrix.\n");
+  if (matlab_ldl_factor(p) < 0) {
+    scs_printf("Error in LDL refactorization.\n");
     return -1;
   }
   return 0;
@@ -165,10 +272,11 @@ scs_int scs_update_lin_sys_diag_r(ScsLinSysWork *p, const scs_float *diag_r) {
 
 void scs_free_lin_sys_work(ScsLinSysWork *p) {
   if (p) {
-    if (p->K_sym) {
-      mxDestroyArray(p->K_sym);
-    }
+    SCS(cs_spfree)(p->L);
     SCS(cs_spfree)(p->kkt);
+    scs_free(p->Dinv);
+    scs_free(p->perm);
+    scs_free(p->bp);
     scs_free(p->diag_r_idxs);
     scs_free(p->diag_p);
     scs_free(p);
