@@ -29,10 +29,12 @@ function package_scs()
         % Minimum release is tied to the release used to build the MEX binaries in CI
         opts.MinimumMatlabRelease = 'R2022b';
         
-        % Disable MATLAB Online as this toolbox relies on native MEX binaries
+        % Disable MATLAB Online as this toolbox relies on native MEX binaries.
+        % We also drop support for Intel Macs (Maci64) as we only build for
+        % Apple Silicon (Macarm64) in CI.
         opts.SupportedPlatforms.Win64 = true;
         opts.SupportedPlatforms.Glnxa64 = true;
-        opts.SupportedPlatforms.Maci64 = true;
+        opts.SupportedPlatforms.Maci64 = false;
         opts.SupportedPlatforms.Macarm64 = true;
         opts.SupportedPlatforms.MatlabOnline = false;
 
