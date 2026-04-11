@@ -463,10 +463,6 @@ static scs_int parse_cones(const mxArray *cone_mex, ScsCone **k_out) {
   return 0;
 }
 
-  *k_out = k;
-  return 0;
-}
-
 /* Write ScsInfo to a MATLAB struct and assign to plhs[3] */
 static void write_info(mxArray **plhs3, const ScsInfo *info) {
   const mwSize one[1] = {1};
