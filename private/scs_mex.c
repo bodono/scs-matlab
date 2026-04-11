@@ -27,20 +27,25 @@ static void ws_cleanup(void) {
 /* ======================== Helper functions ======================== */
 
 scs_int parse_warm_start(const mxArray *p_mex, scs_float **p, scs_int l) {
-  *p = (scs_float *)scs_calloc(
-      l, sizeof(scs_float)); /* this allocates memory used for ScsSolution */
-  if (!*p) return 0;
   if (p_mex == SCS_NULL) {
+    *p = (scs_float *)scs_calloc(l, sizeof(scs_float));
     return 0;
-  } else if (mxIsSparse(p_mex) ||
-             (scs_int)mxGetNumberOfElements(p_mex) != l) {
+  } else if (mxIsSparse(p_mex) || (scs_int)mxGetNumberOfElements(p_mex) != l) {
+    *p = (scs_float *)scs_calloc(l, sizeof(scs_float));
     scs_printf("Error parsing warm start input (make sure vectors are not "
                "sparse and of correct size), running without full "
                "warm-start\n");
     return 0;
   } else {
-    memcpy(*p, mxGetPr(p_mex), l * sizeof(scs_float));
-    return 1;
+#ifdef SFLOAT
+    *p = cast_to_scs_float_arr(mxGetPr(p_mex), l);
+#else
+    *p = (scs_float *)scs_calloc(l, sizeof(scs_float));
+    if (*p) {
+      memcpy(*p, mxGetPr(p_mex), l * sizeof(scs_float));
+    }
+#endif
+    return (*p != SCS_NULL);
   }
 }
 

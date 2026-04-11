@@ -32,9 +32,11 @@ classdef soc < matlab.unittest.TestCase
             testCase.data.x = x;
             testCase.data.y = y;
             testCase.data.s = s;
+            % Disable adaptive scaling so scale doesn't reset/drift
+            pars.adaptive_scale = 0;
             [~,~,~,info] = scs(testCase.data,testCase.cones,pars);
             testCase.verifyEqual(info.status, 'solved')
-            testCase.verifyLessThanOrEqual(info.iter, 50)
+            testCase.verifyLessThanOrEqual(info.iter, 2)
         end
     end
 
