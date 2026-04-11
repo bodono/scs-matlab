@@ -82,9 +82,9 @@ static scs_int extract_L(ScsLinSysWork *p, const mxArray *L_mx) {
   return 0;
 }
 
-/* Extract inverse of diagonal D from MATLAB sparse mxArray.
- * With ldl(K, 0, 'vector'), D is guaranteed to be diagonal (no 2x2 blocks). */
-static scs_int extract_Dinv(ScsLinSysWork *p, const mxArray *D_mx) {
+/* Extract D diagonal and sub-diagonal from MATLAB sparse mxArray.
+ * D from ldl() is block diagonal with 1x1 and 2x2 blocks (tridiagonal). */
+static scs_int extract_D(ScsLinSysWork *p, const mxArray *D_mx) {
   scs_int n_plus_m = p->n + p->m;
   mwIndex *jc = mxGetJc(D_mx);
   mwIndex *ir = mxGetIr(D_mx);
@@ -92,12 +92,19 @@ static scs_int extract_Dinv(ScsLinSysWork *p, const mxArray *D_mx) {
   scs_int j;
   mwIndex k;
 
+  /* Zero out arrays */
+  memset(p->D_diag, 0, n_plus_m * sizeof(scs_float));
+  memset(p->D_sub, 0, (n_plus_m - 1) * sizeof(scs_float));
+
+  /* Extract entries from sparse D */
   for (j = 0; j < n_plus_m; j++) {
-    p->Dinv[j] = 0.0;
     for (k = jc[j]; k < jc[j + 1]; k++) {
-      if ((scs_int)ir[k] == j) {
-        p->Dinv[j] = (scs_float)(1.0 / pr[k]);
-        break;
+      scs_int row = (scs_int)ir[k];
+      if (row == j) {
+        p->D_diag[j] = (scs_float)pr[k];
+      } else if (row == j + 1) {
+        /* Sub-diagonal entry D(j+1, j) */
+        p->D_sub[j] = (scs_float)pr[k];
       }
     }
   }
@@ -116,37 +123,34 @@ static void extract_perm(ScsLinSysWork *p, const mxArray *perm_mx) {
 }
 
 /* Factorize KKT matrix using MATLAB's ldl().
- * Calls [L, D, perm] = ldl(K, 0, 'vector') and extracts factors into C.
- * The upper-triangular KKT is passed directly (ldl only reads upper triangle).
- * thresh=0 disables Bunch-Kaufman pivoting so D is purely diagonal. */
+ * Calls [L, D, perm] = ldl(K, 'vector') and extracts factors into C.
+ * The upper-triangular KKT is passed directly (ldl only reads upper triangle
+ * for sparse matrices). */
 static scs_int matlab_ldl_factor(ScsLinSysWork *p) {
-  mxArray *K_mx, *rhs[3], *lhs[3];
+  mxArray *K_mx, *rhs[2], *lhs[3];
 
   /* Convert C KKT (upper triangular CSC) to MATLAB sparse */
   K_mx = scs_to_mxsparse(p->kkt);
 
-  /* [L, D, perm] = ldl(K, 0, 'vector') */
+  /* [L, D, perm] = ldl(K, 'vector') */
   rhs[0] = K_mx;
-  rhs[1] = mxCreateDoubleScalar(0.0);
-  rhs[2] = mxCreateString("vector");
+  rhs[1] = mxCreateString("vector");
 
-  if (mexCallMATLAB(3, lhs, 3, rhs, "ldl") != 0) {
+  if (mexCallMATLAB(3, lhs, 2, rhs, "ldl") != 0) {
     scs_printf("Error in MATLAB ldl() factorization.\n");
     mxDestroyArray(K_mx);
     mxDestroyArray(rhs[1]);
-    mxDestroyArray(rhs[2]);
     return -1;
   }
 
   /* Extract factors into C arrays */
   extract_L(p, lhs[0]);
-  extract_Dinv(p, lhs[1]);
+  extract_D(p, lhs[1]);
   extract_perm(p, lhs[2]);
 
   /* Clean up all MATLAB temporaries */
   mxDestroyArray(K_mx);
   mxDestroyArray(rhs[1]);
-  mxDestroyArray(rhs[2]);
   mxDestroyArray(lhs[0]);
   mxDestroyArray(lhs[1]);
   mxDestroyArray(lhs[2]);
@@ -156,7 +160,7 @@ static scs_int matlab_ldl_factor(ScsLinSysWork *p) {
 }
 
 /* Forward solve: (L + I) * x = b, where L is strictly lower-triangular.
- * Overwrites b with the solution. */
+ * Overwrites b with the solution. Same as QDLDL_Lsolve. */
 static void forward_solve(scs_int n, const scs_int *Lp, const scs_int *Li,
                           const scs_float *Lx, scs_float *x) {
   scs_int i, j;
@@ -169,7 +173,7 @@ static void forward_solve(scs_int n, const scs_int *Lp, const scs_int *Li,
 }
 
 /* Backward solve: (L + I)' * x = b, where L is strictly lower-triangular.
- * Overwrites b with the solution. */
+ * Overwrites b with the solution. Same as QDLDL_Ltsolve. */
 static void backward_solve(scs_int n, const scs_int *Lp, const scs_int *Li,
                            const scs_float *Lx, scs_float *x) {
   scs_int i, j;
@@ -179,6 +183,28 @@ static void backward_solve(scs_int n, const scs_int *Lp, const scs_int *Li,
       val -= Lx[j] * x[Li[j]];
     }
     x[i] = val;
+  }
+}
+
+/* Block-diagonal solve: D * z = y, where D is tridiagonal with 1x1 and 2x2
+ * Bunch-Kaufman blocks. Overwrites y with the solution. */
+static void diag_solve(scs_int n, const scs_float *D_diag,
+                       const scs_float *D_sub, scs_float *x) {
+  scs_int i = 0;
+  while (i < n) {
+    if (i < n - 1 && D_sub[i] != 0.0) {
+      /* 2x2 block: [a b; b d] */
+      scs_float a = D_diag[i], b = D_sub[i], d = D_diag[i + 1];
+      scs_float det = a * d - b * b;
+      scs_float y0 = x[i], y1 = x[i + 1];
+      x[i] = (d * y0 - b * y1) / det;
+      x[i + 1] = (a * y1 - b * y0) / det;
+      i += 2;
+    } else {
+      /* 1x1 block */
+      x[i] /= D_diag[i];
+      i += 1;
+    }
   }
 }
 
@@ -195,7 +221,9 @@ ScsLinSysWork *scs_init_lin_sys_work(const ScsMatrix *A, const ScsMatrix *P,
   p->diag_p = (scs_float *)scs_calloc(A->n, sizeof(scs_float));
   p->diag_r_idxs = (scs_int *)scs_calloc(n_plus_m, sizeof(scs_int));
   p->L = SCS_NULL;
-  p->Dinv = (scs_float *)scs_calloc(n_plus_m, sizeof(scs_float));
+  p->D_diag = (scs_float *)scs_calloc(n_plus_m, sizeof(scs_float));
+  p->D_sub = (scs_float *)scs_calloc(n_plus_m > 0 ? n_plus_m - 1 : 0,
+                                      sizeof(scs_float));
   p->perm = (scs_int *)scs_calloc(n_plus_m, sizeof(scs_int));
   p->bp = (scs_float *)scs_calloc(n_plus_m, sizeof(scs_float));
   p->factorizations = 0;
@@ -219,7 +247,7 @@ ScsLinSysWork *scs_init_lin_sys_work(const ScsMatrix *A, const ScsMatrix *P,
 }
 
 /* Solve the KKT system using cached LDL factors.
- * Solves P'*L*D*L'*P * x = b where P is the fill-reducing permutation.
+ * K(p,p) = L*D*L' => K = P'*L*D*L'*P.
  * Solution overwrites b. */
 scs_int scs_solve_lin_sys(ScsLinSysWork *p, scs_float *b, const scs_float *s,
                           scs_float tol) {
@@ -234,10 +262,8 @@ scs_int scs_solve_lin_sys(ScsLinSysWork *p, scs_float *b, const scs_float *s,
   /* Forward solve: L * y = bp */
   forward_solve(n_plus_m, p->L->p, p->L->i, p->L->x, p->bp);
 
-  /* Diagonal solve: D * z = y */
-  for (i = 0; i < n_plus_m; i++) {
-    p->bp[i] *= p->Dinv[i];
-  }
+  /* Block-diagonal solve: D * z = y */
+  diag_solve(n_plus_m, p->D_diag, p->D_sub, p->bp);
 
   /* Backward solve: L' * x = z */
   backward_solve(n_plus_m, p->L->p, p->L->i, p->L->x, p->bp);
@@ -274,7 +300,8 @@ void scs_free_lin_sys_work(ScsLinSysWork *p) {
   if (p) {
     SCS(cs_spfree)(p->L);
     SCS(cs_spfree)(p->kkt);
-    scs_free(p->Dinv);
+    scs_free(p->D_diag);
+    scs_free(p->D_sub);
     scs_free(p->perm);
     scs_free(p->bp);
     scs_free(p->diag_r_idxs);
