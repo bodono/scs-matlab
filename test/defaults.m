@@ -53,11 +53,11 @@ classdef defaults < matlab.unittest.TestCase
 
         function test_legacy_f_cone(testCase)
             % Verify that f and z cones are summed correctly
-            data.A = sparse([1 0; 0 1; -1 0; 0 -1; 1 1]);
-            data.b = [1; 1; 0; 0; 1];
-            data.c = [-1; -1];
             % Define 2 zero cones via 'f' and 2 via 'z' (total 4)
             % plus one linear cone 'l' (total 5 rows)
+            data.A = sparse([1 0; 0 1; 1 0; 0 1; 1 1]);
+            data.b = [1; 1; 1; 1; 2];
+            data.c = [-1; -1];
             cones.f = 2;
             cones.z = 2;
             cones.l = 1;
