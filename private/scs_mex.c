@@ -499,9 +499,13 @@ void mexFunction(int nlhs, mxArray *plhs[], int nrhs, const mxArray *prhs[]) {
         scs_free(cmd);
         mexErrMsgTxt("Usage: scs_xxx('init', data, cone, settings)");
       }
-      if (!mxIsStruct(prhs[1]) || !mxIsStruct(prhs[2]) || !mxIsStruct(prhs[3])) {
+      if (!mxIsStruct(prhs[1]) || !mxIsStruct(prhs[2])) {
         scs_free(cmd);
-        mexErrMsgTxt("Input arguments 2, 3, and 4 must be structs.");
+        mexErrMsgTxt("Input arguments 2 and 3 must be structs.");
+      }
+      if (!mxIsEmpty(prhs[3]) && !mxIsStruct(prhs[3])) {
+        scs_free(cmd);
+        mexErrMsgTxt("Input argument 4 (settings) must be a struct.");
       }
       ws_cleanup(); /* free any existing workspace */
       if (parse_data(prhs[1], &d) < 0) {
@@ -648,8 +652,11 @@ void mexFunction(int nlhs, mxArray *plhs[], int nrhs, const mxArray *prhs[]) {
     if (nlhs > 4) {
       mexErrMsgTxt("scs returns up to 4 output arguments only.");
     }
-    if (!mxIsStruct(prhs[0]) || !mxIsStruct(prhs[1]) || !mxIsStruct(prhs[2])) {
-      mexErrMsgTxt("All input arguments must be structs.");
+    if (!mxIsStruct(prhs[0]) || !mxIsStruct(prhs[1])) {
+      mexErrMsgTxt("First two input arguments must be structs.");
+    }
+    if (!mxIsEmpty(prhs[2]) && !mxIsStruct(prhs[2])) {
+      mexErrMsgTxt("Third input argument (settings) must be a struct.");
     }
 
     if (parse_data(prhs[0], &d) < 0) {
