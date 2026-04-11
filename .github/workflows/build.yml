@@ -76,9 +76,49 @@ jobs:
           name: SCS-toolbox
           path: SCS.mltbx
 
+  test-toolbox:
+    name: Test Toolbox (${{ matrix.os }})
+    needs: package
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, macos-latest, windows-latest]
+    runs-on: ${{ matrix.os }}
+    steps:
+      - name: Download Toolbox
+        uses: actions/download-artifact@v4
+        with:
+          name: SCS-toolbox
+          path: ./
+
+      - name: Set up MATLAB
+        uses: matlab-actions/setup-matlab@v3
+        with:
+          release: R2023a
+
+      - name: Smoke Test
+        run: |
+          matlab -batch "matlab.addons.toolbox.installToolbox('SCS.mltbx'); \
+          disp(scs_version); \
+          data.A = sparse([1; 1]); data.b = [1; 1]; data.c = 1; cones.l = 2; \
+          [x, y, s, info] = scs(data, cones, struct('verbose', 0)); \
+          disp(info.status); \
+          assert(strcmp(info.status, 'solved'))"
+
+  release:
+    name: Create Release
+    needs: test-toolbox
+    runs-on: ubuntu-latest
+    if: startsWith(github.ref, 'refs/tags/')
+    steps:
+      - name: Download Toolbox
+        uses: actions/download-artifact@v4
+        with:
+          name: SCS-toolbox
+          path: ./
+
       - name: Create Release and Upload Asset
         uses: softprops/action-gh-release@v1
-        if: startsWith(github.ref, 'refs/tags/')
         with:
           files: SCS.mltbx
           generate_release_notes: true
