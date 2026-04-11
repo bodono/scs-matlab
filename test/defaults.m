@@ -26,10 +26,42 @@ classdef defaults < matlab.unittest.TestCase
             % Call scs with only 2 arguments (no params struct)
             [~,~,~,info] = scs(testCase.data,testCase.cones);
             testCase.verifyEqual(info.status, 'solved')
+            % Verify that the default solver is MATLAB's LDL
+            testCase.verifyEqual(info.lin_sys_solver, 'sparse-direct-matlab-ldl')
         end
 
         function test_empty_params(testCase)
             [~,~,~,info] = scs(testCase.data,testCase.cones,[]);
+            testCase.verifyEqual(info.status, 'solved')
+        end
+
+        function test_workspace_no_params(testCase)
+            % Call scs_init with only 2 arguments
+            work = scs_init(testCase.data, testCase.cones);
+            [~,~,~,info] = scs_solve(work);
+            scs_finish(work);
+            testCase.verifyEqual(info.status, 'solved')
+        end
+
+        function test_workspace_empty_params(testCase)
+            % Call scs_init with empty params
+            work = scs_init(testCase.data, testCase.cones, []);
+            [~,~,~,info] = scs_solve(work);
+            scs_finish(work);
+            testCase.verifyEqual(info.status, 'solved')
+        end
+
+        function test_legacy_f_cone(testCase)
+            % Verify that f and z cones are summed correctly
+            data.A = sparse([1 0; 0 1; -1 0; 0 -1; 1 1]);
+            data.b = [1; 1; 0; 0; 1];
+            data.c = [-1; -1];
+            % Define 2 zero cones via 'f' and 2 via 'z' (total 4)
+            % plus one linear cone 'l' (total 5 rows)
+            cones.f = 2;
+            cones.z = 2;
+            cones.l = 1;
+            [~,~,~,info] = scs(data, cones, struct('verbose', 0));
             testCase.verifyEqual(info.status, 'solved')
         end
 
