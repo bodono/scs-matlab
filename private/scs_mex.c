@@ -116,6 +116,9 @@ static scs_int parse_data(const mxArray *data_mex, ScsData **d_out) {
   const mxArray *A_mex, *P_mex, *b_mex, *c_mex;
 
   d = (ScsData *)scs_calloc(1, sizeof(ScsData));
+  if (!d) {
+    return -1;
+  }
 
   A_mex = (mxArray *)mxGetField(data_mex, 0, "A");
   if (A_mex == SCS_NULL) {
@@ -173,12 +176,20 @@ static scs_int parse_data(const mxArray *data_mex, ScsData **d_out) {
 #endif
 
   A = (ScsMatrix *)scs_calloc(1, sizeof(ScsMatrix));
+  if (!A) {
+    free_mex(d, SCS_NULL, SCS_NULL);
+    return -1;
+  }
   A->n = d->n;
   A->m = d->m;
   d->A = A;
 
   if (P_mex) {
     P = (ScsMatrix *)scs_calloc(1, sizeof(ScsMatrix));
+    if (!P) {
+      free_mex(d, SCS_NULL, SCS_NULL);
+      return -1;
+    }
     P->n = d->n;
     P->m = d->n;
     d->P = P;
@@ -247,11 +258,15 @@ static scs_int parse_data(const mxArray *data_mex, ScsData **d_out) {
 
 /* Parse settings struct into ScsSettings.
  * Caller must free via free_mex(NULL, NULL, stgs). */
-static void parse_settings(const mxArray *settings_mex, ScsSettings **stgs_out) {
+static scs_int parse_settings(const mxArray *settings_mex,
+                              ScsSettings **stgs_out) {
   ScsSettings *stgs;
   mxArray *tmp;
 
   stgs = (ScsSettings *)scs_malloc(sizeof(ScsSettings));
+  if (!stgs) {
+    return -1;
+  }
   scs_set_default_settings(stgs);
 
 #define GET_SETTING_FLOAT(field)                                               \
@@ -294,6 +309,7 @@ static void parse_settings(const mxArray *settings_mex, ScsSettings **stgs_out) 
   }
 
   *stgs_out = stgs;
+  return 0;
 }
 
 /* Parse cone struct into ScsCone.
@@ -549,7 +565,11 @@ void mexFunction(int nlhs, mxArray *plhs[], int nrhs, const mxArray *prhs[]) {
         scs_free(cmd);
         mexErrMsgTxt("Error parsing cones.");
       }
-      parse_settings(prhs[3], &stgs);
+      if (parse_settings(prhs[3], &stgs) < 0) {
+        free_mex(d, k, SCS_NULL);
+        scs_free(cmd);
+        mexErrMsgTxt("Error parsing settings.");
+      }
 
       ws_n = d->n;
       ws_m = d->m;
@@ -698,7 +718,10 @@ void mexFunction(int nlhs, mxArray *plhs[], int nrhs, const mxArray *prhs[]) {
       free_mex(d, SCS_NULL, SCS_NULL);
       mexErrMsgTxt("Error parsing cones.");
     }
-    parse_settings(prhs[2], &stgs);
+    if (parse_settings(prhs[2], &stgs) < 0) {
+      free_mex(d, k, SCS_NULL);
+      mexErrMsgTxt("Error parsing settings.");
+    }
 
     /* warm-start */
     stgs->warm_start =
