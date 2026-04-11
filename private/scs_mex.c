@@ -309,7 +309,7 @@ static scs_int parse_cones(const mxArray *cone_mex, ScsCone **k_out) {
 #define GET_CONE_INT(field)                                                    \
   tmp = mxGetField(cone_mex, 0, #field);                                       \
   if (tmp && !mxIsEmpty(tmp))                                                  \
-  k->field = (scs_int)*mxGetPr(tmp)
+  k->field += (scs_int)*mxGetPr(tmp)
 
   /* TODO rm this */
   tmp = mxGetField(cone_mex, 0, "f");
@@ -319,7 +319,7 @@ static scs_int parse_cones(const mxArray *cone_mex, ScsCone **k_out) {
                "Please replace usage of 'f' with 'z'. If both 'f' and 'z' \n"
                "are set then we sum the two fields to get the final zero \n"
                "cone size.\n");
-    k->z = (scs_int)*mxGetPr(tmp);
+    k->z += (scs_int)*mxGetPr(tmp);
   }
 
   GET_CONE_INT(z);
