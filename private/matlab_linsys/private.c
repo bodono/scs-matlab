@@ -1,4 +1,5 @@
 #include "private.h"
+#include <string.h>
 
 const char *scs_get_lin_sys_method(void) {
   return "sparse-direct-matlab-ldl";
