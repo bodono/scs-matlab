@@ -6,7 +6,7 @@ classdef workspace < matlab.unittest.TestCase
     end
 
     properties (TestParameter)
-        use_indirect = {false, true}
+        solver = {'direct', 'indirect', 'matlab_ldl'}
     end
 
     methods(TestMethodSetup)
@@ -25,8 +25,8 @@ classdef workspace < matlab.unittest.TestCase
     end
 
     methods (Test)
-        function test_workspace_reuse(testCase, use_indirect)
-            pars.use_indirect = use_indirect;
+        function test_workspace_reuse(testCase, solver)
+            pars = workspace.solver_pars(solver);
             pars.verbose = 0;
 
             % One-shot solve for reference
@@ -42,8 +42,8 @@ classdef workspace < matlab.unittest.TestCase
             scs_finish(work);
         end
 
-        function test_update_b(testCase, use_indirect)
-            pars.use_indirect = use_indirect;
+        function test_update_b(testCase, solver)
+            pars = workspace.solver_pars(solver);
             pars.verbose = 0;
 
             work = scs_init(testCase.data, testCase.cones, pars);
@@ -62,8 +62,8 @@ classdef workspace < matlab.unittest.TestCase
             scs_finish(work);
         end
 
-        function test_update_c(testCase, use_indirect)
-            pars.use_indirect = use_indirect;
+        function test_update_c(testCase, solver)
+            pars = workspace.solver_pars(solver);
             pars.verbose = 0;
 
             work = scs_init(testCase.data, testCase.cones, pars);
@@ -80,8 +80,8 @@ classdef workspace < matlab.unittest.TestCase
             scs_finish(work);
         end
 
-        function test_warm_start(testCase, use_indirect)
-            pars.use_indirect = use_indirect;
+        function test_warm_start(testCase, solver)
+            pars = workspace.solver_pars(solver);
             pars.verbose = 0;
 
             work = scs_init(testCase.data, testCase.cones, pars);
@@ -97,6 +97,14 @@ classdef workspace < matlab.unittest.TestCase
             testCase.verifyLessThanOrEqual(info2.iter, 25)
 
             scs_finish(work);
+        end
+    end
+
+    methods (Static)
+        function pars = solver_pars(solver)
+            pars = struct();
+            if strcmp(solver, 'indirect'), pars.use_indirect = true; end
+            if strcmp(solver, 'matlab_ldl'), pars.matlab_ldl = true; end
         end
     end
 end

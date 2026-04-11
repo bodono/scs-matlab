@@ -6,7 +6,7 @@ classdef string_params < matlab.unittest.TestCase
     end
 
     properties (TestParameter)
-        use_indirect = {false, true}
+        solver = {'direct', 'indirect', 'matlab_ldl'}
     end
 
     methods(TestMethodSetup)
@@ -23,12 +23,12 @@ classdef string_params < matlab.unittest.TestCase
     end
 
     methods (Test)
-        function test_random(testCase, use_indirect)
-            pars.use_indirect = use_indirect;
+        function test_random(testCase, solver)
+            pars = string_params.solver_pars(solver);
             pars.acceleration_lookback = 10;
             % test string parameters
-            pars.write_data_filename = sprintf('data_dump_indirect_%d', use_indirect);
-            pars.log_csv_filename = sprintf('log_indirect_%d.csv', use_indirect);
+            pars.write_data_filename = sprintf('data_dump_%s', solver);
+            pars.log_csv_filename = sprintf('log_%s.csv', solver);
             % test other parameters added at the same time
             pars.time_limit_secs = 11.0;
             pars.adaptive_scale = true;
@@ -41,5 +41,12 @@ classdef string_params < matlab.unittest.TestCase
             testCase.verifyEqual(info.status, 'solved (inaccurate - reached time_limit_secs)')
         end
     end
-end
 
+    methods (Static)
+        function pars = solver_pars(solver)
+            pars = struct();
+            if strcmp(solver, 'indirect'), pars.use_indirect = true; end
+            if strcmp(solver, 'matlab_ldl'), pars.matlab_ldl = true; end
+        end
+    end
+end

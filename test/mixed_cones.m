@@ -6,7 +6,7 @@ classdef mixed_cones < matlab.unittest.TestCase
     end
 
     properties (TestParameter)
-        use_indirect = {false, true}
+        solver = {'direct', 'indirect', 'matlab_ldl'}
     end
 
     methods(TestMethodSetup)
@@ -42,8 +42,8 @@ classdef mixed_cones < matlab.unittest.TestCase
     end
 
     methods (Test)
-        function test_mixed(testCase, use_indirect)
-            pars.use_indirect = use_indirect;
+        function test_mixed(testCase, solver)
+            pars = mixed_cones.solver_pars(solver);
             pars.verbose = 0;
             [x,y,s,info] = scs(testCase.data,testCase.cones,pars);
             testCase.verifyEqual(info.status, 'solved')
@@ -55,6 +55,14 @@ classdef mixed_cones < matlab.unittest.TestCase
             [~,~,~,info] = scs(testCase.data,testCase.cones,pars);
             testCase.verifyEqual(info.status, 'solved')
             testCase.verifyLessThanOrEqual(info.iter, 25)
+        end
+    end
+
+    methods (Static)
+        function pars = solver_pars(solver)
+            pars = struct();
+            if strcmp(solver, 'indirect'), pars.use_indirect = true; end
+            if strcmp(solver, 'matlab_ldl'), pars.matlab_ldl = true; end
         end
     end
 end

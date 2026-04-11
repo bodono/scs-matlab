@@ -5,6 +5,10 @@ classdef info_fields < matlab.unittest.TestCase
         cones
     end
 
+    properties (TestParameter)
+        solver = {'direct', 'indirect', 'matlab_ldl'}
+    end
+
     methods(TestMethodSetup)
         function setup_problem(testCase)
             rng(1234)
@@ -18,7 +22,8 @@ classdef info_fields < matlab.unittest.TestCase
     end
 
     methods (Test)
-        function test_all_info_fields_present(testCase)
+        function test_all_info_fields_present(testCase, solver)
+            pars = info_fields.solver_pars(solver);
             pars.verbose = 0;
             [~,~,~,info] = scs(testCase.data,testCase.cones,pars);
 
@@ -32,7 +37,8 @@ classdef info_fields < matlab.unittest.TestCase
             end
         end
 
-        function test_info_types(testCase)
+        function test_info_types(testCase, solver)
+            pars = info_fields.solver_pars(solver);
             pars.verbose = 0;
             [~,~,~,info] = scs(testCase.data,testCase.cones,pars);
 
@@ -46,14 +52,16 @@ classdef info_fields < matlab.unittest.TestCase
             testCase.verifyGreaterThan(info.solve_time, 0)
         end
 
-        function test_solved_status_val(testCase)
+        function test_solved_status_val(testCase, solver)
+            pars = info_fields.solver_pars(solver);
             pars.verbose = 0;
             [~,~,~,info] = scs(testCase.data,testCase.cones,pars);
             testCase.verifyEqual(info.status, 'solved')
             testCase.verifyEqual(info.status_val, 1)
         end
 
-        function test_output_dimensions(testCase)
+        function test_output_dimensions(testCase, solver)
+            pars = info_fields.solver_pars(solver);
             pars.verbose = 0;
             [x,y,s,~] = scs(testCase.data,testCase.cones,pars);
             [m, n] = size(testCase.data.A);
@@ -62,13 +70,22 @@ classdef info_fields < matlab.unittest.TestCase
             testCase.verifySize(s, [m, 1])
         end
 
-        function test_duality_gap(testCase)
+        function test_duality_gap(testCase, solver)
+            pars = info_fields.solver_pars(solver);
             pars.verbose = 0;
             pars.eps_abs = 1e-9;
             pars.eps_rel = 1e-9;
             [~,~,~,info] = scs(testCase.data,testCase.cones,pars);
             testCase.verifyEqual(info.status, 'solved')
             testCase.verifyLessThan(abs(info.pobj - info.dobj), 1e-4)
+        end
+    end
+
+    methods (Static)
+        function pars = solver_pars(solver)
+            pars = struct();
+            if strcmp(solver, 'indirect'), pars.use_indirect = true; end
+            if strcmp(solver, 'matlab_ldl'), pars.matlab_ldl = true; end
         end
     end
 end

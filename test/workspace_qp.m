@@ -6,7 +6,7 @@ classdef workspace_qp < matlab.unittest.TestCase
     end
 
     properties (TestParameter)
-        use_indirect = {false, true}
+        solver = {'direct', 'indirect', 'matlab_ldl'}
     end
 
     methods(TestMethodSetup)
@@ -28,8 +28,8 @@ classdef workspace_qp < matlab.unittest.TestCase
     end
 
     methods (Test)
-        function test_qp_workspace(testCase, use_indirect)
-            pars.use_indirect = use_indirect;
+        function test_qp_workspace(testCase, solver)
+            pars = workspace_qp.solver_pars(solver);
             pars.verbose = 0;
 
             % One-shot reference
@@ -45,8 +45,8 @@ classdef workspace_qp < matlab.unittest.TestCase
             scs_finish(work);
         end
 
-        function test_update_both_b_and_c(testCase, use_indirect)
-            pars.use_indirect = use_indirect;
+        function test_update_both_b_and_c(testCase, solver)
+            pars = workspace_qp.solver_pars(solver);
             pars.verbose = 0;
 
             work = scs_init(testCase.data, testCase.cones, pars);
@@ -66,8 +66,8 @@ classdef workspace_qp < matlab.unittest.TestCase
             scs_finish(work);
         end
 
-        function test_sequential_updates(testCase, use_indirect)
-            pars.use_indirect = use_indirect;
+        function test_sequential_updates(testCase, solver)
+            pars = workspace_qp.solver_pars(solver);
             pars.verbose = 0;
 
             work = scs_init(testCase.data, testCase.cones, pars);
@@ -84,6 +84,14 @@ classdef workspace_qp < matlab.unittest.TestCase
             end
 
             scs_finish(work);
+        end
+    end
+
+    methods (Static)
+        function pars = solver_pars(solver)
+            pars = struct();
+            if strcmp(solver, 'indirect'), pars.use_indirect = true; end
+            if strcmp(solver, 'matlab_ldl'), pars.matlab_ldl = true; end
         end
     end
 end

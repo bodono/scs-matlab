@@ -1,14 +1,14 @@
 classdef quad_box < matlab.unittest.TestCase
-    
+
     properties
         data
         cones
     end
-    
+
     properties (TestParameter)
-        use_indirect = {false, true}
+        solver = {'direct', 'indirect', 'matlab_ldl'}
     end
-    
+
     methods(TestMethodSetup)
         function setup_problem(testCase)
             % Create Problem
@@ -25,12 +25,12 @@ classdef quad_box < matlab.unittest.TestCase
     end
 
     methods (Test)
-        function test_random(testCase, use_indirect)
-            pars.use_indirect = use_indirect;
+        function test_random(testCase, solver)
+            pars = quad_box.solver_pars(solver);
             pars.acceleration_lookback = 10;
             [x,y,s,info] = scs(testCase.data,testCase.cones,pars);
             testCase.verifyEqual(info.status, 'solved')
-            
+
             % warm-start test
             testCase.data.x = x;
             testCase.data.y = y;
@@ -40,5 +40,12 @@ classdef quad_box < matlab.unittest.TestCase
             testCase.verifyLessThanOrEqual(info.iter, 25)
         end
     end
-end
 
+    methods (Static)
+        function pars = solver_pars(solver)
+            pars = struct();
+            if strcmp(solver, 'indirect'), pars.use_indirect = true; end
+            if strcmp(solver, 'matlab_ldl'), pars.matlab_ldl = true; end
+        end
+    end
+end

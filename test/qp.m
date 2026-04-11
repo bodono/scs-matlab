@@ -6,7 +6,7 @@ classdef qp < matlab.unittest.TestCase
     end
 
     properties (TestParameter)
-        use_indirect = {false, true}
+        solver = {'direct', 'indirect', 'matlab_ldl'}
     end
 
     methods(TestMethodSetup)
@@ -25,8 +25,8 @@ classdef qp < matlab.unittest.TestCase
     end
 
     methods (Test)
-        function test_qp(testCase, use_indirect)
-            pars.use_indirect = use_indirect;
+        function test_qp(testCase, solver)
+            pars = qp.solver_pars(solver);
             pars.verbose = 0;
             [x,y,s,info] = scs(testCase.data,testCase.cones,pars);
             testCase.verifyEqual(info.status, 'solved')
@@ -40,15 +40,23 @@ classdef qp < matlab.unittest.TestCase
             testCase.verifyLessThanOrEqual(info.iter, 25)
         end
 
-        function test_qp_lower_triangular_P(testCase, use_indirect)
+        function test_qp_lower_triangular_P(testCase, solver)
             % scs.m should handle lower triangular P via symmetrization
-            pars.use_indirect = use_indirect;
+            pars = qp.solver_pars(solver);
             pars.verbose = 0;
             % Pass only the lower triangle of the symmetric P
             P_lower = tril(testCase.data.P);
             testCase.data.P = sparse(P_lower);
             [~,~,~,info] = scs(testCase.data,testCase.cones,pars);
             testCase.verifyEqual(info.status, 'solved')
+        end
+    end
+
+    methods (Static)
+        function pars = solver_pars(solver)
+            pars = struct();
+            if strcmp(solver, 'indirect'), pars.use_indirect = true; end
+            if strcmp(solver, 'matlab_ldl'), pars.matlab_ldl = true; end
         end
     end
 end
