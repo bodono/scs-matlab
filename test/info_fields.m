@@ -6,7 +6,7 @@ classdef info_fields < matlab.unittest.TestCase
     end
 
     properties (TestParameter)
-        solver = {'direct', 'indirect', 'matlab_ldl'}
+        solver = {'default', 'qdldl', 'indirect'}
     end
 
     methods(TestMethodSetup)
@@ -84,8 +84,8 @@ classdef info_fields < matlab.unittest.TestCase
     methods (Static)
         function pars = solver_pars(solver)
             pars = struct();
+            if strcmp(solver, 'qdldl'), pars.use_qdldl = true; end
             if strcmp(solver, 'indirect'), pars.use_indirect = true; end
-            if strcmp(solver, 'matlab_ldl'), pars.matlab_ldl = true; end
         end
     end
 end
