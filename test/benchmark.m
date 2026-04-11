@@ -6,7 +6,7 @@ classdef benchmark < matlab.unittest.TestCase
     methods (Test)
         function test_benchmark(testCase)
             ns = [10, 50, 100, 200];
-            m_ratios = [2, 5];
+            m_ratios = [3, 5];
             densities = [0.1, 0.5, 1.0];
             types = {'LP', 'QP'};
 
@@ -39,13 +39,15 @@ classdef benchmark < matlab.unittest.TestCase
                                 A = sprandn(m, n, density);
                             end
                             data.A = A;
-                            data.c = randn(n, 1);
                             K.l = m;
 
-                            % Feasible b: b = A*x_feas + s_feas, s_feas > 0
+                            % Primal feasible: b = A*x + s, s > 0
                             x_feas = randn(n, 1);
                             s_feas = ones(m, 1);
                             data.b = A * x_feas + s_feas;
+                            % Dual feasible: c = A'*y, y > 0 (guarantees boundedness)
+                            y_feas = ones(m, 1);
+                            data.c = A' * y_feas;
 
                             if strcmp(prob_type, 'QP')
                                 P_half = sprandn(n, n, min(density * 2, 1.0));
@@ -66,7 +68,7 @@ classdef benchmark < matlab.unittest.TestCase
                                 prob_type, n, m, density))
                             % Compare solutions when both solved
                             if strcmp(info1.status, 'solved') && strcmp(info2.status, 'solved')
-                                testCase.verifyEqual(x1, x2, 'RelTol', 1e-3, ...
+                                testCase.verifyEqual(x1, x2, 'AbsTol', 1e-3, ...
                                     sprintf('%s n=%d m=%d d=%.1f: solutions differ', ...
                                     prob_type, n, m, density))
                             end
