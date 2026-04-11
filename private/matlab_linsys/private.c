@@ -1,4 +1,5 @@
 #include "private.h"
+#include <string.h>
 
 const char *scs_get_lin_sys_method(void) {
   return "sparse-direct-matlab-ldl";
@@ -43,6 +44,8 @@ static mxArray *scs_to_mxsparse_symmetric(const ScsMatrix *M) {
 
   /* Count entries per column in the full symmetric matrix */
   col_counts = (scs_int *)scs_calloc(n, sizeof(scs_int));
+  if (!col_counts) return SCS_NULL;
+
   for (j = 0; j < n; j++) {
     for (k = M->p[j]; k < M->p[j + 1]; k++) {
       scs_int i = M->i[k];
@@ -55,6 +58,11 @@ static mxArray *scs_to_mxsparse_symmetric(const ScsMatrix *M) {
 
   /* Create MATLAB sparse matrix and build column pointers */
   mx = mxCreateSparse((mwSize)M->m, (mwSize)n, (mwSize)nnz_full, mxREAL);
+  if (!mx) {
+    scs_free(col_counts);
+    return SCS_NULL;
+  }
+
   pr = mxGetPr(mx);
   ir = mxGetIr(mx);
   jc = mxGetJc(mx);
@@ -66,6 +74,12 @@ static mxArray *scs_to_mxsparse_symmetric(const ScsMatrix *M) {
 
   /* Fill entries: write_pos[j] tracks next write position for column j */
   write_pos = (scs_int *)scs_calloc(n, sizeof(scs_int));
+  if (!write_pos) {
+    scs_free(col_counts);
+    mxDestroyArray(mx);
+    return SCS_NULL;
+  }
+
   for (j = 0; j < n; j++) {
     write_pos[j] = (scs_int)jc[j];
   }
@@ -137,6 +151,8 @@ static scs_int extract_L(ScsLinSysWork *p, const mxArray *L_mx) {
     p->L->x = (scs_float *)scs_calloc(nnz_nodiag, sizeof(scs_float));
   }
   if (!p->L->p || (nnz_nodiag > 0 && (!p->L->i || !p->L->x))) {
+    SCS(cs_spfree)(p->L);
+    p->L = SCS_NULL;
     return -1;
   }
 
@@ -328,6 +344,12 @@ ScsLinSysWork *scs_init_lin_sys_work(const ScsMatrix *A, const ScsMatrix *P,
   p->perm = (scs_int *)scs_calloc(n_plus_m, sizeof(scs_int));
   p->bp = (scs_float *)scs_calloc(n_plus_m, sizeof(scs_float));
   p->factorizations = 0;
+
+  if (!p->diag_p || !p->diag_r_idxs || !p->D_diag || (n_plus_m > 1 && !p->D_sub) || !p->perm || !p->bp) {
+    scs_printf("Error allocating memory for linear system workspace.\n");
+    scs_free_lin_sys_work(p);
+    return SCS_NULL;
+  }
 
   /* Form upper-triangular KKT matrix */
   p->kkt = SCS(form_kkt)(A, P, p->diag_p, diag_r, p->diag_r_idxs, 1);
