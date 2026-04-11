@@ -1,12 +1,8 @@
-function [x, y, s, info] = scs(varargin)
+function [x, y, s, info] = scs(data, K, pars)
 % scs 3.2.5
 % for version call: scs_version()
 
-data = varargin{1};
-K = varargin{2};
-if nargin >= 3
-    pars = varargin{3};
-else
+if nargin < 3
     pars = [];
 end
 
