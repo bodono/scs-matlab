@@ -20,8 +20,9 @@ struct SCS_LIN_SYS_WORK {
   scs_float *diag_p;     /* diagonal of P (objective matrix) */
   /* MATLAB mxArray pointers for LDL factors: A(p,p) = L*D*L' */
   mxArray *L;            /* unit lower triangular factor */
+  mxArray *Lt;           /* L transposed (upper triangular) */
   mxArray *D;            /* block diagonal factor (1x1 and 2x2 blocks) */
-  mxArray *perm;         /* permutation vector (1-indexed, MATLAB convention) */
+  scs_int *perm;         /* permutation vector (0-indexed C convention) */
   scs_int factorizations;
 };
 
