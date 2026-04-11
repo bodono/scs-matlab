@@ -4,26 +4,96 @@ const char *scs_get_lin_sys_method(void) {
   return "sparse-direct-matlab-ldl";
 }
 
-/* Convert ScsMatrix (CSC, upper triangular) to MATLAB sparse mxArray */
-static mxArray *scs_to_mxsparse(const ScsMatrix *M) {
-  scs_int j, nnz;
+/* Convert upper-triangular ScsMatrix (CSC) to full symmetric MATLAB sparse.
+ * For each off-diagonal entry (i,j) with i < j, we store both (i,j) and (j,i).
+ * This avoids calling MATLAB functions for the symmetrization. */
+static mxArray *scs_to_mxsparse_symmetric(const ScsMatrix *M) {
+  scs_int n = M->n;
+  scs_int j, k, nnz_upper, nnz_full;
+  scs_int *col_counts;
   mxArray *mx;
   double *pr;
   mwIndex *ir, *jc;
+  scs_int *write_pos;
 
-  nnz = M->p[M->n];
-  mx = mxCreateSparse((mwSize)M->m, (mwSize)M->n, (mwSize)nnz, mxREAL);
+  nnz_upper = M->p[n];
+
+  /* Count off-diagonal entries to compute full nnz */
+  nnz_full = nnz_upper; /* start with upper triangle entries */
+  for (j = 0; j < n; j++) {
+    for (k = M->p[j]; k < M->p[j + 1]; k++) {
+      if (M->i[k] != j) {
+        nnz_full++; /* each off-diagonal entry appears twice */
+      }
+    }
+  }
+
+  /* Count entries per column in the full symmetric matrix */
+  col_counts = (scs_int *)scs_calloc(n, sizeof(scs_int));
+  for (j = 0; j < n; j++) {
+    for (k = M->p[j]; k < M->p[j + 1]; k++) {
+      scs_int i = M->i[k];
+      col_counts[j]++; /* upper triangle entry (i,j) goes in column j */
+      if (i != j) {
+        col_counts[i]++; /* mirror entry (j,i) goes in column i */
+      }
+    }
+  }
+
+  /* Create MATLAB sparse matrix and build column pointers */
+  mx = mxCreateSparse((mwSize)M->m, (mwSize)n, (mwSize)nnz_full, mxREAL);
   pr = mxGetPr(mx);
   ir = mxGetIr(mx);
   jc = mxGetJc(mx);
 
-  for (j = 0; j < nnz; j++) {
-    pr[j] = (double)M->x[j];
-    ir[j] = (mwIndex)M->i[j];
+  jc[0] = 0;
+  for (j = 0; j < n; j++) {
+    jc[j + 1] = jc[j] + (mwIndex)col_counts[j];
   }
-  for (j = 0; j <= M->n; j++) {
-    jc[j] = (mwIndex)M->p[j];
+
+  /* Fill entries: write_pos[j] tracks next write position for column j */
+  write_pos = (scs_int *)scs_calloc(n, sizeof(scs_int));
+  for (j = 0; j < n; j++) {
+    write_pos[j] = (scs_int)jc[j];
   }
+
+  for (j = 0; j < n; j++) {
+    for (k = M->p[j]; k < M->p[j + 1]; k++) {
+      scs_int i = M->i[k];
+      scs_int pos;
+      /* Original entry (i,j) in column j, i <= j (upper triangle) */
+      pos = write_pos[j]++;
+      ir[pos] = (mwIndex)i;
+      pr[pos] = (double)M->x[k];
+      if (i != j) {
+        /* Mirror entry (j,i) in column i */
+        pos = write_pos[i]++;
+        ir[pos] = (mwIndex)j;
+        pr[pos] = (double)M->x[k];
+      }
+    }
+  }
+
+  scs_free(col_counts);
+  scs_free(write_pos);
+
+  /* Sort row indices within each column (MATLAB requires sorted CSC) */
+  for (j = 0; j < n; j++) {
+    mwIndex start = jc[j], end = jc[j + 1];
+    mwIndex a, b;
+    /* Simple insertion sort — columns are small */
+    for (a = start + 1; a < end; a++) {
+      mwIndex tmp_ir = ir[a];
+      double tmp_pr = pr[a];
+      for (b = a; b > start && ir[b - 1] > tmp_ir; b--) {
+        ir[b] = ir[b - 1];
+        pr[b] = pr[b - 1];
+      }
+      ir[b] = tmp_ir;
+      pr[b] = tmp_pr;
+    }
+  }
+
   return mx;
 }
 
@@ -122,41 +192,17 @@ static void extract_perm(ScsLinSysWork *p, const mxArray *perm_mx) {
   }
 }
 
-/* Symmetrize an upper-triangular sparse matrix: K_sym = K + triu(K,1)'.
- * Returns a new mxArray. Destroys K_upper. */
-static mxArray *symmetrize_upper(mxArray *K_upper) {
-  mxArray *triu_rhs[2], *K_strict, *K_strict_t, *plus_rhs[2], *K_sym;
-
-  /* K_strict = triu(K_upper, 1) — strict upper triangle */
-  triu_rhs[0] = K_upper;
-  triu_rhs[1] = mxCreateDoubleScalar(1.0);
-  mexCallMATLAB(1, &K_strict, 2, triu_rhs, "triu");
-  mxDestroyArray(triu_rhs[1]);
-
-  /* K_strict_t = K_strict' */
-  mexCallMATLAB(1, &K_strict_t, 1, &K_strict, "ctranspose");
-  mxDestroyArray(K_strict);
-
-  /* K_sym = K_upper + K_strict_t */
-  plus_rhs[0] = K_upper;
-  plus_rhs[1] = K_strict_t;
-  mexCallMATLAB(1, &K_sym, 2, plus_rhs, "plus");
-  mxDestroyArray(K_strict_t);
-  mxDestroyArray(K_upper);
-
-  return K_sym;
-}
-
 /* Factorize KKT matrix using MATLAB's ldl().
  * Calls [L, D, perm] = ldl(K_sym, 'vector') and extracts factors into C.
- * The KKT is stored as upper triangular in C; we symmetrize before calling
- * ldl because MATLAB's sparse ldl requires a structurally symmetric matrix. */
+ * The KKT is stored as upper triangular in C; we build the full symmetric
+ * MATLAB sparse matrix in C before calling ldl (MATLAB's sparse ldl requires
+ * a structurally symmetric input — it silently produces wrong factors
+ * otherwise, see test/ldl_diag.m). */
 static scs_int matlab_ldl_factor(ScsLinSysWork *p) {
-  mxArray *K_upper, *K_sym, *rhs[2], *lhs[3];
+  mxArray *K_sym, *rhs[2], *lhs[3];
 
-  /* Convert C KKT (upper triangular CSC) to MATLAB sparse, then symmetrize */
-  K_upper = scs_to_mxsparse(p->kkt);
-  K_sym = symmetrize_upper(K_upper); /* destroys K_upper */
+  /* Build full symmetric MATLAB sparse from upper-triangular C CSC */
+  K_sym = scs_to_mxsparse_symmetric(p->kkt);
 
   /* [L, D, perm] = ldl(K_sym, 'vector') */
   rhs[0] = K_sym;
