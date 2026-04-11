@@ -6,7 +6,20 @@ const char *scs_get_lin_sys_method(void) {
 
 /* Convert upper-triangular ScsMatrix (CSC) to full symmetric MATLAB sparse.
  * For each off-diagonal entry (i,j) with i < j, we store both (i,j) and (j,i).
- * This avoids calling MATLAB functions for the symmetrization. */
+ * This avoids calling MATLAB functions for the symmetrization.
+ *
+ * NOTE: MATLAB's documentation for sparse ldl says "only the upper triangle
+ * is referenced", which suggests passing just the upper triangle should work.
+ * However, testing shows that MATLAB's sparse ldl (which uses MA57 from HSL)
+ * requires the input to be *structurally* symmetric — i.e., if entry (i,j)
+ * exists then (j,i) must also exist. Passing only the upper triangle of an
+ * asymmetric sparsity pattern (like a KKT matrix where A' occupies the upper-
+ * right and A occupies the lower-left) causes ldl to silently produce wrong
+ * factors with no error or warning. See test/ldl_diag.m for a demonstration.
+ *
+ * The "upper triangle only" documentation likely means that for a structurally
+ * symmetric input, ldl only *reads* the upper triangle for efficiency. It does
+ * NOT mean you can omit the lower triangle entries from the sparsity pattern. */
 static mxArray *scs_to_mxsparse_symmetric(const ScsMatrix *M) {
   scs_int n = M->n;
   scs_int j, k, nnz_upper, nnz_full;
@@ -195,9 +208,18 @@ static void extract_perm(ScsLinSysWork *p, const mxArray *perm_mx) {
 /* Factorize KKT matrix using MATLAB's ldl().
  * Calls [L, D, perm] = ldl(K_sym, 'vector') and extracts factors into C.
  * The KKT is stored as upper triangular in C; we build the full symmetric
- * MATLAB sparse matrix in C before calling ldl (MATLAB's sparse ldl requires
- * a structurally symmetric input — it silently produces wrong factors
- * otherwise, see test/ldl_diag.m). */
+ * MATLAB sparse matrix in C before calling ldl (see scs_to_mxsparse_symmetric
+ * for why the full symmetric matrix is required).
+ *
+ * This computes a full factorization including a new fill-reducing (AMD)
+ * permutation every time it is called. Ideally we would separate the symbolic
+ * analysis (which depends only on sparsity pattern) from the numeric
+ * factorization (which depends on values). Unfortunately MATLAB's ldl() does
+ * not expose separate symbolic/numeric phases — and while MATLAB does provide
+ * amd() for computing orderings independently, there is no way to pass a
+ * pre-computed permutation into ldl(). Under the hood ldl() uses HSL's MA57,
+ * which does have separate analyze/factorize phases, but MATLAB's wrapper
+ * bundles them into a single call. */
 static scs_int matlab_ldl_factor(ScsLinSysWork *p) {
   mxArray *K_sym, *rhs[2], *lhs[3];
 
@@ -348,7 +370,11 @@ scs_int scs_solve_lin_sys(ScsLinSysWork *p, scs_float *b, const scs_float *s,
   return 0;
 }
 
-/* Update diagonal of R in the KKT matrix and refactorize. */
+/* Update diagonal of R in the KKT matrix and refactorize.
+ * Only the diagonal values change — the sparsity pattern is unchanged.
+ * Despite this, matlab_ldl_factor recomputes the AMD permutation because
+ * MATLAB's ldl() does not accept a pre-computed permutation (see comment
+ * in matlab_ldl_factor for alternatives). */
 scs_int scs_update_lin_sys_diag_r(ScsLinSysWork *p, const scs_float *diag_r) {
   scs_int i;
 
