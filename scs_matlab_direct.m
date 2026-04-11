@@ -11,8 +11,8 @@ function [x, y, s, info] = scs_matlab_direct(data, cone, params)
 % where x \in R^n, s \in R^m
 %
 % This uses MATLAB's native ldl() function instead of the bundled QDLDL
-% solver. This may be faster for large problems due to MA57's supernodal
-% factorization, but has per-iteration overhead from MATLAB callbacks.
+% solver. Factorization calls into MATLAB's ldl(), but the per-iteration
+% forward/diagonal/backward solves run entirely in C with no MATLAB callbacks.
 %
 % K is product of cones in this particular order:
 % zero cone, lp cone, box cone, second order cone(s), semi-definite

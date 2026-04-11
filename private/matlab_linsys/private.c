@@ -90,22 +90,10 @@ static mxArray *scs_to_mxsparse_symmetric(const ScsMatrix *M) {
   scs_free(col_counts);
   scs_free(write_pos);
 
-  /* Sort row indices within each column (MATLAB requires sorted CSC) */
-  for (j = 0; j < n; j++) {
-    mwIndex start = jc[j], end = jc[j + 1];
-    mwIndex a, b;
-    /* Simple insertion sort — columns are small */
-    for (a = start + 1; a < end; a++) {
-      mwIndex tmp_ir = ir[a];
-      double tmp_pr = pr[a];
-      for (b = a; b > start && ir[b - 1] > tmp_ir; b--) {
-        ir[b] = ir[b - 1];
-        pr[b] = pr[b - 1];
-      }
-      ir[b] = tmp_ir;
-      pr[b] = tmp_pr;
-    }
-  }
+  /* Row indices are already sorted by construction: for each column C,
+   * upper-triangle entries have row indices <= C (from the input CSC order)
+   * and mirror entries have row indices > C (from increasing outer loop j).
+   * Concatenating these two sequences produces a sorted array. */
 
   return mx;
 }
@@ -144,8 +132,13 @@ static scs_int extract_L(ScsLinSysWork *p, const mxArray *L_mx) {
   p->L->m = n_plus_m;
   p->L->n = n_plus_m;
   p->L->p = (scs_int *)scs_calloc(n_plus_m + 1, sizeof(scs_int));
-  p->L->i = (scs_int *)scs_calloc(nnz_nodiag, sizeof(scs_int));
-  p->L->x = (scs_float *)scs_calloc(nnz_nodiag, sizeof(scs_float));
+  if (nnz_nodiag > 0) {
+    p->L->i = (scs_int *)scs_calloc(nnz_nodiag, sizeof(scs_int));
+    p->L->x = (scs_float *)scs_calloc(nnz_nodiag, sizeof(scs_float));
+  }
+  if (!p->L->p || (nnz_nodiag > 0 && (!p->L->i || !p->L->x))) {
+    return -1;
+  }
 
   /* Fill L, skipping diagonal entries */
   {
@@ -230,24 +223,38 @@ static scs_int matlab_ldl_factor(ScsLinSysWork *p) {
   rhs[0] = K_sym;
   rhs[1] = mxCreateString("vector");
 
-  if (mexCallMATLAB(3, lhs, 2, rhs, "ldl") != 0) {
-    scs_printf("Error in MATLAB ldl() factorization.\n");
-    mxDestroyArray(K_sym);
-    mxDestroyArray(rhs[1]);
-    return -1;
+  {
+    mxArray *err = mexCallMATLABWithTrap(3, lhs, 2, rhs, "ldl");
+    if (err != NULL) {
+      scs_printf("Error in MATLAB ldl() factorization.\n");
+      mxDestroyArray(K_sym);
+      mxDestroyArray(rhs[1]);
+      mxDestroyArray(err);
+      return -1;
+    }
   }
 
   /* Extract factors into C arrays */
-  extract_L(p, lhs[0]);
-  extract_D(p, lhs[1]);
-  extract_perm(p, lhs[2]);
+  {
+    scs_int status = 0;
+    if (extract_L(p, lhs[0]) < 0) {
+      status = -1;
+    } else {
+      extract_D(p, lhs[1]);
+      extract_perm(p, lhs[2]);
+    }
 
-  /* Clean up all MATLAB temporaries */
-  mxDestroyArray(K_sym);
-  mxDestroyArray(rhs[1]);
-  mxDestroyArray(lhs[0]);
-  mxDestroyArray(lhs[1]);
-  mxDestroyArray(lhs[2]);
+    /* Clean up all MATLAB temporaries */
+    mxDestroyArray(K_sym);
+    mxDestroyArray(rhs[1]);
+    mxDestroyArray(lhs[0]);
+    mxDestroyArray(lhs[1]);
+    mxDestroyArray(lhs[2]);
+
+    if (status < 0) {
+      return -1;
+    }
+  }
 
   p->factorizations++;
   return 0;
