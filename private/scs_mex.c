@@ -305,6 +305,9 @@ static scs_int parse_cones(const mxArray *cone_mex, ScsCone **k_out) {
   const double *tmp_mex;
 
   k = (ScsCone *)scs_calloc(1, sizeof(ScsCone));
+  if (!k) {
+    return -1;
+  }
 
 #define GET_CONE_INT(field)                                                    \
   tmp = mxGetField(cone_mex, 0, #field);                                       \
@@ -331,10 +334,19 @@ static scs_int parse_cones(const mxArray *cone_mex, ScsCone **k_out) {
 
 #define GET_CONE_ARR(field, size_field, type)                                  \
   tmp = mxGetField(cone_mex, 0, #field);                                       \
-  if (tmp && !mxIsEmpty(tmp) && mxIsDouble(tmp)) {                             \
+  if (tmp && !mxIsEmpty(tmp)) {                                                \
+    if (!mxIsDouble(tmp)) {                                                    \
+      scs_printf("Cone field `" #field "` must be a double array.\n");         \
+      free_mex(SCS_NULL, k, SCS_NULL);                                         \
+      return -1;                                                               \
+    }                                                                          \
     tmp_mex = mxGetPr(tmp);                                                    \
     k->size_field = get_mex_length(tmp);                                       \
     k->field = (type *)scs_calloc(k->size_field, sizeof(type));                \
+    if (!k->field) {                                                           \
+      free_mex(SCS_NULL, k, SCS_NULL);                                         \
+      return -1;                                                               \
+    }                                                                          \
     for (i = 0; i < k->size_field; i++) {                                      \
       k->field[i] = (type)tmp_mex[i];                                          \
     }                                                                          \
@@ -376,6 +388,10 @@ static scs_int parse_cones(const mxArray *cone_mex, ScsCone **k_out) {
       }
       k->bu = (scs_float *)scs_calloc(blen, sizeof(scs_float));
       k->bl = (scs_float *)scs_calloc(blen, sizeof(scs_float));
+      if (!k->bu || !k->bl) {
+        free_mex(SCS_NULL, k, SCS_NULL);
+        return -1;
+      }
       const double *bl_mex = mxGetPr(kbl);
       const double *bu_mex = mxGetPr(kbu);
       for (i = 0; i < blen; i++) {
@@ -393,11 +409,19 @@ static scs_int parse_cones(const mxArray *cone_mex, ScsCone **k_out) {
   {
     mxArray *knuc_m = mxGetField(cone_mex, 0, "nuc_m");
     mxArray *knuc_n = mxGetField(cone_mex, 0, "nuc_n");
-    if (knuc_m && knuc_n && !mxIsEmpty(knuc_m) && !mxIsEmpty(knuc_n) &&
-        mxIsDouble(knuc_m) && mxIsDouble(knuc_n)) {
+    if (knuc_m && knuc_n && !mxIsEmpty(knuc_m) && !mxIsEmpty(knuc_n)) {
+      if (!mxIsDouble(knuc_m) || !mxIsDouble(knuc_n)) {
+        scs_printf("nuc_m, nuc_n cone entries must be double arrays.\n");
+        free_mex(SCS_NULL, k, SCS_NULL);
+        return -1;
+      }
       k->nucsize = get_mex_length(knuc_m);
       k->nuc_m = (scs_int *)scs_calloc(k->nucsize, sizeof(scs_int));
       k->nuc_n = (scs_int *)scs_calloc(k->nucsize, sizeof(scs_int));
+      if (!k->nuc_m || !k->nuc_n) {
+        free_mex(SCS_NULL, k, SCS_NULL);
+        return -1;
+      }
       const double *nuc_m_mex = mxGetPr(knuc_m);
       const double *nuc_n_mex = mxGetPr(knuc_n);
       for (i = 0; i < k->nucsize; i++) {
@@ -410,11 +434,19 @@ static scs_int parse_cones(const mxArray *cone_mex, ScsCone **k_out) {
   {
     mxArray *ksl_n = mxGetField(cone_mex, 0, "sl_n");
     mxArray *ksl_k = mxGetField(cone_mex, 0, "sl_k");
-    if (ksl_n && ksl_k && !mxIsEmpty(ksl_n) && !mxIsEmpty(ksl_k) &&
-        mxIsDouble(ksl_n) && mxIsDouble(ksl_k)) {
+    if (ksl_n && ksl_k && !mxIsEmpty(ksl_n) && !mxIsEmpty(ksl_k)) {
+      if (!mxIsDouble(ksl_n) || !mxIsDouble(ksl_k)) {
+        scs_printf("sl_n, sl_k cone entries must be double arrays.\n");
+        free_mex(SCS_NULL, k, SCS_NULL);
+        return -1;
+      }
       k->sl_size = get_mex_length(ksl_n);
       k->sl_n = (scs_int *)scs_calloc(k->sl_size, sizeof(scs_int));
       k->sl_k = (scs_int *)scs_calloc(k->sl_size, sizeof(scs_int));
+      if (!k->sl_n || !k->sl_k) {
+        free_mex(SCS_NULL, k, SCS_NULL);
+        return -1;
+      }
       const double *sl_n_mex = mxGetPr(ksl_n);
       const double *sl_k_mex = mxGetPr(ksl_k);
       for (i = 0; i < k->sl_size; i++) {
@@ -426,6 +458,10 @@ static scs_int parse_cones(const mxArray *cone_mex, ScsCone **k_out) {
 #endif
 
 #undef GET_CONE_ARR
+
+  *k_out = k;
+  return 0;
+}
 
   *k_out = k;
   return 0;
