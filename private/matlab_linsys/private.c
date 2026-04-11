@@ -122,23 +122,49 @@ static void extract_perm(ScsLinSysWork *p, const mxArray *perm_mx) {
   }
 }
 
+/* Symmetrize an upper-triangular sparse matrix: K_sym = K + triu(K,1)'.
+ * Returns a new mxArray. Destroys K_upper. */
+static mxArray *symmetrize_upper(mxArray *K_upper) {
+  mxArray *triu_rhs[2], *K_strict, *K_strict_t, *plus_rhs[2], *K_sym;
+
+  /* K_strict = triu(K_upper, 1) — strict upper triangle */
+  triu_rhs[0] = K_upper;
+  triu_rhs[1] = mxCreateDoubleScalar(1.0);
+  mexCallMATLAB(1, &K_strict, 2, triu_rhs, "triu");
+  mxDestroyArray(triu_rhs[1]);
+
+  /* K_strict_t = K_strict' */
+  mexCallMATLAB(1, &K_strict_t, 1, &K_strict, "ctranspose");
+  mxDestroyArray(K_strict);
+
+  /* K_sym = K_upper + K_strict_t */
+  plus_rhs[0] = K_upper;
+  plus_rhs[1] = K_strict_t;
+  mexCallMATLAB(1, &K_sym, 2, plus_rhs, "plus");
+  mxDestroyArray(K_strict_t);
+  mxDestroyArray(K_upper);
+
+  return K_sym;
+}
+
 /* Factorize KKT matrix using MATLAB's ldl().
- * Calls [L, D, perm] = ldl(K, 'vector') and extracts factors into C.
- * The upper-triangular KKT is passed directly (ldl only reads upper triangle
- * for sparse matrices). */
+ * Calls [L, D, perm] = ldl(K_sym, 'vector') and extracts factors into C.
+ * The KKT is stored as upper triangular in C; we symmetrize before calling
+ * ldl because MATLAB's sparse ldl requires a structurally symmetric matrix. */
 static scs_int matlab_ldl_factor(ScsLinSysWork *p) {
-  mxArray *K_mx, *rhs[2], *lhs[3];
+  mxArray *K_upper, *K_sym, *rhs[2], *lhs[3];
 
-  /* Convert C KKT (upper triangular CSC) to MATLAB sparse */
-  K_mx = scs_to_mxsparse(p->kkt);
+  /* Convert C KKT (upper triangular CSC) to MATLAB sparse, then symmetrize */
+  K_upper = scs_to_mxsparse(p->kkt);
+  K_sym = symmetrize_upper(K_upper); /* destroys K_upper */
 
-  /* [L, D, perm] = ldl(K, 'vector') */
-  rhs[0] = K_mx;
+  /* [L, D, perm] = ldl(K_sym, 'vector') */
+  rhs[0] = K_sym;
   rhs[1] = mxCreateString("vector");
 
   if (mexCallMATLAB(3, lhs, 2, rhs, "ldl") != 0) {
     scs_printf("Error in MATLAB ldl() factorization.\n");
-    mxDestroyArray(K_mx);
+    mxDestroyArray(K_sym);
     mxDestroyArray(rhs[1]);
     return -1;
   }
@@ -149,7 +175,7 @@ static scs_int matlab_ldl_factor(ScsLinSysWork *p) {
   extract_perm(p, lhs[2]);
 
   /* Clean up all MATLAB temporaries */
-  mxDestroyArray(K_mx);
+  mxDestroyArray(K_sym);
   mxDestroyArray(rhs[1]);
   mxDestroyArray(lhs[0]);
   mxDestroyArray(lhs[1]);
