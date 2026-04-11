@@ -6,7 +6,7 @@ classdef exponential < matlab.unittest.TestCase
     end
 
     properties (TestParameter)
-        use_indirect = {false, true}
+        solver = {'default', 'qdldl', 'indirect'}
     end
 
     methods(TestMethodSetup)
@@ -23,12 +23,20 @@ classdef exponential < matlab.unittest.TestCase
     end
 
     methods (Test)
-        function test_exponential(testCase, use_indirect)
-            pars.use_indirect = use_indirect;
+        function test_exponential(testCase, solver)
+            pars = exponential.solver_pars(solver);
             pars.verbose = 0;
             [~,~,~,info] = scs(testCase.data,testCase.cones,pars);
             testCase.verifyTrue(contains(info.status, 'solved') || ...
                 contains(info.status, 'infeasible'))
+        end
+    end
+
+    methods (Static)
+        function pars = solver_pars(solver)
+            pars = struct();
+            if strcmp(solver, 'qdldl'), pars.use_qdldl = true; end
+            if strcmp(solver, 'indirect'), pars.use_indirect = true; end
         end
     end
 end

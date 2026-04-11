@@ -42,6 +42,8 @@ elseif (isfield(pars,'gpu') && pars.gpu)
     [  x, y, s, info  ] = scs_gpu( data, K, pars );
 elseif (isfield(pars,'dense') && pars.dense)
     [  x, y, s, info  ] = scs_dense( data, K, pars );
-else
+elseif (isfield(pars,'use_qdldl') && pars.use_qdldl)
     [  x, y, s, info  ] = scs_direct( data, K, pars );
+else
+    [  x, y, s, info  ] = scs_matlab_direct( data, K, pars );
 end

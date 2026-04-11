@@ -6,7 +6,7 @@ classdef sdp < matlab.unittest.TestCase
     end
 
     properties (TestParameter)
-        use_indirect = {false, true}
+        solver = {'default', 'qdldl', 'indirect'}
     end
 
     methods(TestMethodSetup)
@@ -28,8 +28,8 @@ classdef sdp < matlab.unittest.TestCase
     end
 
     methods (Test)
-        function test_sdp(testCase, use_indirect)
-            pars.use_indirect = use_indirect;
+        function test_sdp(testCase, solver)
+            pars = sdp.solver_pars(solver);
             pars.verbose = 0;
             [x,y,s,info] = scs(testCase.data,testCase.cones,pars);
             testCase.verifyEqual(info.status, 'solved')
@@ -41,6 +41,14 @@ classdef sdp < matlab.unittest.TestCase
             [~,~,~,info] = scs(testCase.data,testCase.cones,pars);
             testCase.verifyEqual(info.status, 'solved')
             testCase.verifyLessThanOrEqual(info.iter, 25)
+        end
+    end
+
+    methods (Static)
+        function pars = solver_pars(solver)
+            pars = struct();
+            if strcmp(solver, 'qdldl'), pars.use_qdldl = true; end
+            if strcmp(solver, 'indirect'), pars.use_indirect = true; end
         end
     end
 end

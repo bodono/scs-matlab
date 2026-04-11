@@ -1,14 +1,14 @@
 classdef zero < matlab.unittest.TestCase
-    
+
     properties
         data
         cones
     end
-    
+
     properties (TestParameter)
-        use_indirect = {false, true}
+        solver = {'default', 'qdldl', 'indirect'}
     end
-    
+
     methods(TestMethodSetup)
         function setup_problem(testCase)
             % Create Problem
@@ -23,12 +23,19 @@ classdef zero < matlab.unittest.TestCase
     end
 
     methods (Test)
-        function test_random(testCase, use_indirect)
-            pars.use_indirect = use_indirect;
+        function test_random(testCase, solver)
+            pars = zero.solver_pars(solver);
             pars.acceleration_lookback = 0;
             [~,~,~,info] = scs(testCase.data,testCase.cones,pars);
             testCase.verifyEqual(info.status, 'infeasible')
         end
     end
-end
 
+    methods (Static)
+        function pars = solver_pars(solver)
+            pars = struct();
+            if strcmp(solver, 'qdldl'), pars.use_qdldl = true; end
+            if strcmp(solver, 'indirect'), pars.use_indirect = true; end
+        end
+    end
+end
