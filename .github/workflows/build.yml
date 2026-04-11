@@ -8,23 +8,23 @@ on:
   workflow_dispatch:
 
 jobs:
-  build:
-    name: Build (${{ matrix.os }})
+  build-and-test:
+    name: Build & Test MEX (${{ matrix.os }})
     strategy:
       fail-fast: false
       matrix:
         os: [ubuntu-latest, macos-latest, windows-latest]
-
     runs-on: ${{ matrix.os }}
-
     steps:
-      - uses: actions/checkout@v6
+      - uses: actions/checkout@v4
         with:
           submodules: 'recursive'
 
-      - uses: matlab-actions/setup-matlab@v3
+      - name: Set up MATLAB
+        uses: matlab-actions/setup-matlab@v3
 
-      - uses: matlab-actions/run-command@v3
+      - name: Compile MEX
+        uses: matlab-actions/run-command@v3
         with:
           command: make_scs
 
@@ -34,3 +34,49 @@ jobs:
           source-folder: ./
           select-by-folder: test
 
+      - name: Upload MEX artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: mex-${{ matrix.os }}
+          path: |
+            *.mex*
+            !*.prj
+            !*.mltbx
+
+  package:
+    name: Package .mltbx
+    needs: build-and-test
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          submodules: 'recursive'
+
+      - name: Download MEX binaries
+        uses: actions/download-artifact@v4
+        with:
+          merge-multiple: true
+          path: ./
+
+      - name: Set up MATLAB
+        uses: matlab-actions/setup-matlab@v3
+
+      - name: Package Toolbox
+        uses: matlab-actions/run-command@v3
+        with:
+          command: package_scs
+
+      - name: Upload Toolbox Artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: SCS-toolbox
+          path: SCS.mltbx
+
+      - name: Create Release and Upload Asset
+        uses: softprops/action-gh-release@v1
+        if: startsWith(github.ref, 'refs/tags/')
+        with:
+          files: SCS.mltbx
+          generate_release_notes: true
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
