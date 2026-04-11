@@ -97,13 +97,9 @@ jobs:
           release: R2023a
 
       - name: Smoke Test
-        run: |
-          matlab -batch "matlab.addons.toolbox.installToolbox('SCS.mltbx'); \
-          disp(scs_version); \
-          data.A = sparse([1; 1]); data.b = [1; 1]; data.c = 1; cones.l = 2; \
-          [x, y, s, info] = scs(data, cones, struct('verbose', 0)); \
-          disp(info.status); \
-          assert(strcmp(info.status, 'solved'))"
+        uses: matlab-actions/run-command@v3
+        with:
+          command: "matlab.addons.toolbox.installToolbox('SCS.mltbx'); disp(scs_version); data.A = sparse([1; 1]); data.b = [1; 1]; data.c = 1; cones.l = 2; [x, y, s, info] = scs(data, cones, struct('verbose', 0)); disp(info.status); assert(strcmp(info.status, 'solved'))"
 
   release:
     name: Create Release
