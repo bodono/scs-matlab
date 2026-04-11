@@ -18,11 +18,7 @@ struct SCS_LIN_SYS_WORK {
   ScsMatrix *kkt;        /* KKT matrix in CSC format (upper triangular) */
   scs_int *diag_r_idxs;  /* indices of R diagonal entries in kkt->x */
   scs_float *diag_p;     /* diagonal of P (objective matrix) */
-  /* MATLAB mxArray pointers for LDL factors: A(p,p) = L*D*L' */
-  mxArray *L;            /* unit lower triangular factor */
-  mxArray *Lt;           /* L transposed (upper triangular) */
-  mxArray *D;            /* block diagonal factor (1x1 and 2x2 blocks) */
-  scs_int *perm;         /* permutation vector (0-indexed C convention) */
+  mxArray *K_sym;        /* full symmetric KKT matrix as persistent mxArray */
   scs_int factorizations;
 };
 
