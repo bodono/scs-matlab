@@ -22,7 +22,7 @@ classdef matlab_ldl < matlab.unittest.TestCase
             [x1, y1, ~, info1] = scs(data, K, pars);
             testCase.verifyEqual(info1.status, 'solved')
 
-            pars.use_qdldl = true;
+            pars.use_matlab_ldl = true;
             [x2, y2, ~, info2] = scs(data, K, pars);
             testCase.verifyEqual(info2.status, 'solved')
 
@@ -50,7 +50,7 @@ classdef matlab_ldl < matlab.unittest.TestCase
             [x1, y1, ~, info1] = scs(data, K, pars);
             testCase.verifyEqual(info1.status, 'solved')
 
-            pars.use_qdldl = true;
+            pars.use_matlab_ldl = true;
             [x2, y2, ~, info2] = scs(data, K, pars);
             testCase.verifyEqual(info2.status, 'solved')
 
@@ -82,7 +82,7 @@ classdef matlab_ldl < matlab.unittest.TestCase
             [x1, y1, ~, info1] = scs(data, K, pars);
             testCase.verifyEqual(info1.status, 'solved')
 
-            pars.use_qdldl = true;
+            pars.use_matlab_ldl = true;
             [x2, y2, ~, info2] = scs(data, K, pars);
             testCase.verifyEqual(info2.status, 'solved')
 
@@ -105,10 +105,10 @@ classdef matlab_ldl < matlab.unittest.TestCase
             data.c = -data.A' * y_feas;
 
             pars_default = struct('verbose', 0);
-            pars_qdldl = struct('verbose', 0, 'use_qdldl', true);
+            pars_matlab = struct('verbose', 0, 'use_matlab_ldl', true);
 
             work_default = scs_init(data, K, pars_default);
-            work_qdldl = scs_init(data, K, pars_qdldl);
+            work_matlab = scs_init(data, K, pars_matlab);
 
             % Solve 3 times with different feasible b vectors
             for i = 1:3
@@ -116,10 +116,10 @@ classdef matlab_ldl < matlab.unittest.TestCase
                 x_feas = randn(n, 1);
                 b_new = data.A * x_feas + s_feas;
                 scs_update(work_default, b_new, []);
-                scs_update(work_qdldl, b_new, []);
+                scs_update(work_matlab, b_new, []);
 
                 [x1, ~, ~, info1] = scs_solve(work_default);
-                [x2, ~, ~, info2] = scs_solve(work_qdldl);
+                [x2, ~, ~, info2] = scs_solve(work_matlab);
 
                 testCase.verifyEqual(info1.status, 'solved')
                 testCase.verifyEqual(info2.status, 'solved')
@@ -128,7 +128,7 @@ classdef matlab_ldl < matlab.unittest.TestCase
             end
 
             scs_finish(work_default);
-            scs_finish(work_qdldl);
+            scs_finish(work_matlab);
         end
 
         function test_mixed_cones_cross_validate(testCase)
@@ -159,7 +159,7 @@ classdef matlab_ldl < matlab.unittest.TestCase
             [x1, y1, ~, info1] = scs(data, K, pars);
             testCase.verifyEqual(info1.status, 'solved')
 
-            pars.use_qdldl = true;
+            pars.use_matlab_ldl = true;
             [x2, y2, ~, info2] = scs(data, K, pars);
             testCase.verifyEqual(info2.status, 'solved')
 

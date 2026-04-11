@@ -49,10 +49,10 @@ elseif (isfield(pars,'gpu') && pars.gpu)
     work.backend = 'scs_gpu';
 elseif (isfield(pars,'dense') && pars.dense)
     work.backend = 'scs_dense';
-elseif (isfield(pars,'use_qdldl') && pars.use_qdldl)
-    work.backend = 'scs_direct';
-else
+elseif (isfield(pars,'use_matlab_ldl') && pars.use_matlab_ldl)
     work.backend = 'scs_matlab_direct';
+else
+    work.backend = 'scs_direct';
 end
 
 work.n = size(data.A, 2);

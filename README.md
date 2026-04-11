@@ -59,15 +59,13 @@ scs_finish(work);                        % free workspace
 
 ### Solver backends
 
-By default SCS uses MATLAB's built-in sparse LDL factorization (MA57) for the
-linear system solve. This requires no external dependencies beyond MATLAB itself.
-Alternatives:
+By default SCS uses the bundled QDLDL sparse direct solver. Alternatives:
 
 ```matlab
-settings.use_qdldl = true;    % bundled QDLDL solver (pure C, no MATLAB dependency)
-settings.use_indirect = true;  % conjugate gradient (iterative)
-settings.dense = true;         % dense Cholesky (for dense A)
-settings.gpu = true;           % GPU solver
+settings.use_matlab_ldl = true;  % MATLAB's built-in LDL (MA57, no compilation needed)
+settings.use_indirect = true;    % conjugate gradient (iterative)
+settings.dense = true;           % dense Cholesky (for dense A)
+settings.gpu = true;             % GPU solver
 ```
 
 ### Cones

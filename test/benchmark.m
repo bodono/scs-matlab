@@ -14,9 +14,9 @@ classdef benchmark < matlab.unittest.TestCase
             results = struct( ...
                 'type', cell(n_configs, 1), ...
                 'n', 0, 'm', 0, 'density', 0, ...
-                'iter_default', 0, 'iter_qdldl', 0, ...
-                'setup_default', 0, 'setup_qdldl', 0, ...
-                'solve_default', 0, 'solve_qdldl', 0);
+                'iter_default', 0, 'iter_matlab', 0, ...
+                'setup_default', 0, 'setup_matlab', 0, ...
+                'solve_default', 0, 'solve_matlab', 0);
 
             idx = 0;
             for ti = 1:length(types)
@@ -54,13 +54,13 @@ classdef benchmark < matlab.unittest.TestCase
                                 data.P = sparse(P_half * P_half' + 0.1 * speye(n));
                             end
 
-                            % Solve with default (matlab_ldl)
+                            % Solve with default (qdldl)
                             pars = struct('verbose', 0);
                             [x1, ~, ~, info1] = scs(data, K, pars);
 
-                            % Solve with qdldl
-                            pars_q = struct('verbose', 0, 'use_qdldl', true);
-                            [x2, ~, ~, info2] = scs(data, K, pars_q);
+                            % Solve with matlab_ldl
+                            pars_m = struct('verbose', 0, 'use_matlab_ldl', true);
+                            [x2, ~, ~, info2] = scs(data, K, pars_m);
 
                             % Verify both solvers agree on status
                             testCase.verifyEqual(info1.status, info2.status, ...
@@ -79,11 +79,11 @@ classdef benchmark < matlab.unittest.TestCase
                             results(idx).m = m;
                             results(idx).density = density;
                             results(idx).iter_default = info1.iter;
-                            results(idx).iter_qdldl = info2.iter;
+                            results(idx).iter_matlab = info2.iter;
                             results(idx).setup_default = info1.setup_time;
-                            results(idx).setup_qdldl = info2.setup_time;
+                            results(idx).setup_matlab = info2.setup_time;
                             results(idx).solve_default = info1.solve_time;
-                            results(idx).solve_qdldl = info2.solve_time;
+                            results(idx).solve_matlab = info2.solve_time;
                         end
                     end
                 end
@@ -93,48 +93,48 @@ classdef benchmark < matlab.unittest.TestCase
             fprintf('\n')
             fprintf('%-4s %5s %5s %7s | %6s %6s | %10s %10s | %10s %10s\n', ...
                 'Type', 'n', 'm', 'density', ...
-                'it_def', 'it_qdl', ...
-                'setup_def', 'setup_qdl', ...
-                'solve_def', 'solve_qdl')
+                'it_def', 'it_mat', ...
+                'setup_def', 'setup_mat', ...
+                'solve_def', 'solve_mat')
             fprintf('%s\n', repmat('-', 1, 85))
             for i = 1:n_configs
                 r = results(i);
                 fprintf('%-4s %5d %5d %7.1f | %6d %6d | %8.2f ms %8.2f ms | %8.2f ms %8.2f ms\n', ...
                     r.type, r.n, r.m, r.density, ...
-                    r.iter_default, r.iter_qdldl, ...
-                    r.setup_default, r.setup_qdldl, ...
-                    r.solve_default, r.solve_qdldl)
+                    r.iter_default, r.iter_matlab, ...
+                    r.setup_default, r.setup_matlab, ...
+                    r.solve_default, r.solve_matlab)
             end
 
             % Aggregate summary
             iters_def = [results.iter_default];
-            iters_qdl = [results.iter_qdldl];
+            iters_mat = [results.iter_matlab];
             setup_def = [results.setup_default];
-            setup_qdl = [results.setup_qdldl];
+            setup_mat = [results.setup_matlab];
             solve_def = [results.solve_default];
-            solve_qdl = [results.solve_qdldl];
+            solve_mat = [results.solve_matlab];
             total_def = setup_def + solve_def;
-            total_qdl = setup_qdl + solve_qdl;
+            total_mat = setup_mat + solve_mat;
 
             fprintf('\n')
-            fprintf('%-20s %12s %12s\n', '', 'matlab_ldl', 'qdldl')
+            fprintf('%-20s %12s %12s\n', '', 'qdldl', 'matlab_ldl')
             fprintf('%s\n', repmat('-', 1, 46))
             fprintf('%-20s %10d %12d\n', 'Median iters', ...
-                round(median(iters_def)), round(median(iters_qdl)))
+                round(median(iters_def)), round(median(iters_mat)))
             fprintf('%-20s %10d %12d\n', 'Max iters', ...
-                max(iters_def), max(iters_qdl))
+                max(iters_def), max(iters_mat))
             fprintf('%-20s %8.2f ms %10.2f ms\n', 'Median setup time', ...
-                median(setup_def), median(setup_qdl))
+                median(setup_def), median(setup_mat))
             fprintf('%-20s %8.2f ms %10.2f ms\n', 'Max setup time', ...
-                max(setup_def), max(setup_qdl))
+                max(setup_def), max(setup_mat))
             fprintf('%-20s %8.2f ms %10.2f ms\n', 'Median solve time', ...
-                median(solve_def), median(solve_qdl))
+                median(solve_def), median(solve_mat))
             fprintf('%-20s %8.2f ms %10.2f ms\n', 'Max solve time', ...
-                max(solve_def), max(solve_qdl))
+                max(solve_def), max(solve_mat))
             fprintf('%-20s %8.2f ms %10.2f ms\n', 'Median total time', ...
-                median(total_def), median(total_qdl))
+                median(total_def), median(total_mat))
             fprintf('%-20s %8.2f ms %10.2f ms\n', 'Max total time', ...
-                max(total_def), max(total_qdl))
+                max(total_def), max(total_mat))
             fprintf('\n')
         end
     end

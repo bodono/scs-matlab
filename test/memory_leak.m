@@ -6,7 +6,7 @@ classdef memory_leak < matlab.unittest.TestCase
     end
 
     properties (TestParameter)
-        solver = {'default', 'qdldl', 'indirect'}
+        solver = {'default', 'matlab_ldl', 'indirect'}
     end
 
     methods(TestMethodSetup)
@@ -52,7 +52,7 @@ classdef memory_leak < matlab.unittest.TestCase
     methods (Static)
         function pars = solver_pars(solver)
             pars = struct();
-            if strcmp(solver, 'qdldl'), pars.use_qdldl = true; end
+            if strcmp(solver, 'matlab_ldl'), pars.use_matlab_ldl = true; end
             if strcmp(solver, 'indirect'), pars.use_indirect = true; end
         end
     end
