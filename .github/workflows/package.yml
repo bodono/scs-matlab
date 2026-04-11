@@ -2,8 +2,11 @@ name: Package Toolbox
 
 on:
   push:
+    branches:
+      - master
     tags:
       - 'v*'
+  pull_request:
   workflow_dispatch:
 
 jobs:
@@ -58,6 +61,12 @@ jobs:
         uses: matlab-actions/run-command@v2
         with:
           command: matlab.addons.toolbox.packageToolbox('scs.prj', 'SCS.mltbx')
+
+      - name: Upload Toolbox Artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: SCS-toolbox
+          path: SCS.mltbx
 
       - name: Create Release and Upload Asset
         uses: softprops/action-gh-release@v1
