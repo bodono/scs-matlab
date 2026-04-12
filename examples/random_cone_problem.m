@@ -1,9 +1,9 @@
 clear all;close all;
 
-addpath('../../matlab')
-addpath('./scs_matlab')
+example_dir = fileparts(mfilename('fullpath'));
+addpath(fullfile(example_dir, '..', 'matlab'))
 
-%cd '../../matlab'; make_scs; cd '../examples/matlab';
+%cd(fullfile(example_dir, '..')); make_scs;
 
 randn('seed',0);rand('seed',0);
 

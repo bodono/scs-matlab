@@ -1,5 +1,5 @@
-#ifndef PRIV_H_GUARD
-#define PRIV_H_GUARD
+#ifndef MATLAB_LDL_LINSYS_H_GUARD
+#define MATLAB_LDL_LINSYS_H_GUARD
 
 #ifdef __cplusplus
 extern "C" {

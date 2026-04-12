@@ -90,19 +90,18 @@ cmd = sprintf('mex -v -O -I%s -I%s %s %s -output matlab/scs_version', ...
     fullfile('scs', 'include'), fullfile('scs', 'linsys'), ...
     fullfile('scs', 'src', 'scs_version.c'), ...
     fullfile('src', 'scs_version_mex.c'));
+disp(cmd);
 eval(cmd);
 
 % Keep internal build helpers off the user's permanent MATLAB path.
 rmpath(src_dir);
 
 % Add to path and save
-addpath(scs_root);
 addpath(matlab_dir);
 if savepath ~= 0
     fprintf('\n');
     fprintf('NOTE: Could not save the MATLAB path permanently.\n');
-    fprintf('To use SCS in future sessions, add these lines to your startup.m:\n');
-    fprintf('  addpath(''%s'');\n', scs_root);
+    fprintf('To use SCS in future sessions, add this line to your startup.m:\n');
     fprintf('  addpath(''%s'');\n', matlab_dir);
     fprintf('\n');
 end

@@ -176,7 +176,7 @@ classdef ldl_diag < matlab.unittest.TestCase
         function x = c_level_solve(K, b)
             % Replicate the C-level LDL solve algorithm in MATLAB.
             % This mirrors forward_solve, diag_solve, backward_solve in
-            % src/matlab_linsys/private.c
+            % src/matlab_linsys/matlab_ldl_linsys.c
             nm = size(K, 1);
             [L, D, perm] = ldl(K, 'vector');
             L_nodiag = L - speye(nm);
