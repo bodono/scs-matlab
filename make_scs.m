@@ -1,9 +1,11 @@
 scs_root = fileparts(mfilename('fullpath'));
 old_dir = cd(scs_root);
+src_dir = fullfile(scs_root, 'src');
+matlab_dir = fullfile(scs_root, 'matlab');
 
 % Add subfolders to path so we can find compilation and MATLAB scripts
-addpath(fullfile(scs_root, 'src'));
-addpath(fullfile(scs_root, 'matlab'));
+addpath(src_dir);
+addpath(matlab_dir);
 
 gpu = false; % compile the gpu version of SCS
 float = false; % using single precision (rather than double) floating points
@@ -90,15 +92,18 @@ cmd = sprintf('mex -v -O -I%s -I%s %s %s -output matlab/scs_version', ...
     fullfile('src', 'scs_version_mex.c'));
 eval(cmd);
 
+% Keep internal build helpers off the user's permanent MATLAB path.
+rmpath(src_dir);
+
 % Add to path and save
 addpath(scs_root);
-addpath(fullfile(scs_root, 'matlab'));
+addpath(matlab_dir);
 if savepath ~= 0
     fprintf('\n');
     fprintf('NOTE: Could not save the MATLAB path permanently.\n');
     fprintf('To use SCS in future sessions, add these lines to your startup.m:\n');
     fprintf('  addpath(''%s'');\n', scs_root);
-    fprintf('  addpath(''%s'');\n', fullfile(scs_root, 'matlab'));
+    fprintf('  addpath(''%s'');\n', matlab_dir);
     fprintf('\n');
 end
 
