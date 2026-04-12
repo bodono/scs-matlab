@@ -1,10 +1,5 @@
-function [x, y, s, info] = scs(data, K, pars)
-% scs 3.2.5
-% for version call: scs_version()
-
-if nargin < 3
-    pars = [];
-end
+function data = scs_prepare_data(data)
+% SCS_PREPARE_DATA Normalize input matrices/vectors and validate dimensions.
 
 if isfield(data, 'P')
     data.P = sparse(data.P);
@@ -31,16 +26,4 @@ assert(size(data.A, 2) == size(data.c, 1), "A and c shape mismatch")
 if isfield(data, 'P')
     assert(size(data.P, 1) == size(data.P, 2), "P is not square")
     assert(size(data.P, 1) == size(data.c, 1), "P and c shape mismatch")
-end
-
-if isfield(pars, 'use_indirect') && pars.use_indirect
-    [x, y, s, info] = scs_indirect(data, K, pars);
-elseif isfield(pars, 'gpu') && pars.gpu
-    [x, y, s, info] = scs_gpu(data, K, pars);
-elseif isfield(pars, 'dense') && pars.dense
-    [x, y, s, info] = scs_dense(data, K, pars);
-elseif isfield(pars, 'use_qdldl') && pars.use_qdldl
-    [x, y, s, info] = scs_direct(data, K, pars);
-else
-    [x, y, s, info] = scs_matlab_direct(data, K, pars);
 end

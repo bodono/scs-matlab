@@ -38,6 +38,7 @@ out
 *.m~
 *.mat
 *.mex*
+matlab/*.mex*
 *.mexmaci
 *.mexa64
 *.mexmaci64

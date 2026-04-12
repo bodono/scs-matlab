@@ -1,4 +1,4 @@
-#include "private.h"
+#include "matlab_ldl_linsys.h"
 #include <string.h>
 
 const char *scs_get_lin_sys_method(void) {

@@ -1,6 +1,8 @@
 addpath ~/cvx
-addpath ~/scs/matlab
 addpath ~/ecos-matlab/bin
+
+example_dir = fileparts(mfilename('fullpath'));
+addpath(fullfile(example_dir, '..', 'matlab'))
 
 cvx_setup ~/cvx_license.dat
 
