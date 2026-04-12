@@ -9,16 +9,25 @@ The full documentation is available [here](https://www.cvxgrp.org/scs/).
 
 ## Installation
 
-```bash
-git clone --recursive https://github.com/bodono/scs-matlab.git
-```
+### 1. Download Toolbox (.mltbx) - Recommended
+The easiest way to install SCS is to download the pre-compiled MATLAB Toolbox file:
+1. Go to the [SCS Releases](https://github.com/bodono/scs-matlab/releases) page.
+2. Download the latest `SCS.mltbx` file.
+3. Open the file in MATLAB (or double-click it) to install.
 
-Then in MATLAB:
+This version comes with pre-compiled binaries for Windows, Linux, and Apple Silicon Macs, so you don't need a C compiler.
 
-```matlab
-cd <path/to/scs-matlab>
-make_scs
-```
+### 2. Build from Source
+If you are on an unsupported platform or prefer to build from source:
+1. Clone the repository recursively:
+   ```bash
+   git clone --recursive https://github.com/bodono/scs-matlab.git
+   ```
+2. In MATLAB, run the installer:
+   ```matlab
+   cd <path/to/scs-matlab>
+   make_scs
+   ```
 
 ## Usage
 
