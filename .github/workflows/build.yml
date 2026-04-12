@@ -99,7 +99,38 @@ jobs:
       - name: Smoke Test
         uses: matlab-actions/run-command@v3
         with:
-          command: "matlab.addons.toolbox.installToolbox('SCS.mltbx'); disp(scs_version); data.A = sparse(-1); data.b = -1; data.c = 1; cones.l = 1; [x, y, s, info] = scs(data, cones, struct('verbose', 0)); disp(info.status); assert(strcmp(info.status, 'solved'))"
+          command: |
+            toolboxes = matlab.addons.toolbox.installedToolboxes;
+            if ~isempty(toolboxes)
+                matches = strcmp({toolboxes.Guid}, '9fe2fe4d-165e-4d2d-8511-91bcef1583b0');
+                for i = find(matches)
+                    matlab.addons.toolbox.uninstallToolbox(toolboxes(i));
+                end
+            end
+            installedToolbox = matlab.addons.toolbox.installToolbox('SCS.mltbx');
+            assert(strcmp(installedToolbox.Guid, '9fe2fe4d-165e-4d2d-8511-91bcef1583b0'));
+            scsPath = which('scs');
+            scsVersionPath = which('scs_version');
+            assert(~isempty(scsPath), 'Installed toolbox did not put scs on the MATLAB path');
+            assert(~isempty(scsVersionPath), 'Installed toolbox did not put scs_version on the MATLAB path');
+            assert(contains(scsPath, [filesep 'matlab' filesep]), ...
+                sprintf('Expected scs.m to come from installed toolbox matlab/ folder, got: %s', scsPath));
+            assert(exist('scs_version', 'file') == 3, ...
+                sprintf('Expected scs_version to resolve to a MEX file, got: %s', scsVersionPath));
+            disp(scs_version);
+            data.A = sparse(-1);
+            data.b = -1;
+            data.c = 1;
+            cones.l = 1;
+            [x, y, s, info] = scs(data, cones, struct('verbose', 0));
+            assert(strcmp(info.status, 'solved'), info.status);
+            assert(isfinite(x) && isfinite(y) && isfinite(s));
+            [x, y, s, info] = scs(data, cones, struct('verbose', 0, 'use_qdldl', true));
+            assert(strcmp(info.status, 'solved'), info.status);
+            assert(isfinite(x) && isfinite(y) && isfinite(s));
+            [x, y, s, info] = scs(data, cones, struct('verbose', 0, 'use_indirect', true));
+            assert(strcmp(info.status, 'solved'), info.status);
+            assert(isfinite(x) && isfinite(y) && isfinite(s));
 
   release:
     name: Create Release
