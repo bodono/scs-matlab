@@ -145,7 +145,7 @@ jobs:
           path: ./
 
       - name: Create Release and Upload Asset
-        uses: softprops/action-gh-release@v1
+        uses: softprops/action-gh-release@v3
         with:
           files: SCS.mltbx
           generate_release_notes: true
