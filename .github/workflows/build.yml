@@ -37,7 +37,7 @@ jobs:
           select-by-folder: test
 
       - name: Upload MEX artifact
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: mex-${{ matrix.os }}
           path: |
@@ -71,7 +71,7 @@ jobs:
           command: package_scs
 
       - name: Upload Toolbox Artifact
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: SCS-toolbox
           path: SCS.mltbx
