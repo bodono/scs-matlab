@@ -111,18 +111,22 @@ if use_open_mp
         % auto-link of libomp, so we can substitute MATLAB's libiomp5
         % at link time.
         flags.CFLAGS = [flags.CFLAGS ' -Xclang -fopenmp'];
-        % NB: paths in flags.link are appended raw into the ``eval(cmd)``
-        % string in compile_*.m and tokenized by MATLAB's command-style
-        % mex syntax on whitespace. We deliberately do NOT wrap the
-        % paths in double quotes — command-style mex chokes on
-        % ``-L"path"`` with an "Invalid use of operator" parse error
-        % (only the ``NAME="value"`` form recognizes embedded quotes).
-        % That's fine for our use because the MATLAB install paths
-        % don't contain spaces in practice; if that ever changes,
-        % switch to passing ``LDFLAGS="$LDFLAGS ..."`` via the
-        % compile_*.m wrappers.
-        flags.link = sprintf('%s -L%s -liomp5 -Wl,-rpath,%s', ...
-            flags.link, matlab_bin, matlab_bin);
+        % NB: flags.link is appended raw into the ``eval(cmd)`` string
+        % in compile_*.m. Anything with a comma (e.g. ``-Wl,...``)
+        % cannot be placed here as a bare token — MATLAB's parser
+        % treats the commas as function-call argument separators
+        % and falls back to expression-style parsing, which then
+        % chokes on the unary minus prefixing the link flags
+        % ("Invalid use of operator"). The ``NAME="value"`` form does
+        % protect embedded commas, so we wrap any comma-bearing
+        % linker args in an ``LDFLAGS="$LDFLAGS ..."`` token. The
+        % comma-free ``-L<path> -liomp5`` pieces can stay as bare
+        % tokens. No ``-rpath`` is needed because MATLAB has already
+        % loaded its libiomp5 into the process before the MEX is
+        % dlopened — the dynamic loader matches by soname against
+        % currently-loaded libraries first, so the MEX resolves
+        % against MATLAB's libiomp5 without an rpath hint.
+        flags.link = sprintf('%s -L%s -liomp5', flags.link, matlab_bin);
     else
         % gcc: ``-fopenmp`` at compile so the pragmas are processed and
         % the generated code emits ``GOMP_*`` runtime calls. At link
@@ -131,10 +135,10 @@ if use_open_mp
         % which exports ``GOMP_*`` aliases on Linux so the
         % GCC-emitted calls resolve into it. One runtime, no conflict.
         flags.CFLAGS = [flags.CFLAGS ' -fopenmp'];
-        % See the macOS branch above for why these paths are not
-        % wrapped in quotes.
-        flags.link = sprintf('%s -L%s -liomp5 -Wl,-rpath,%s', ...
-            flags.link, matlab_bin, matlab_bin);
+        % See the macOS branch above for why we don't add -Wl,-rpath
+        % (and why we can't, even if we wanted to, without changing
+        % the cmd assembly in compile_*.m).
+        flags.link = sprintf('%s -L%s -liomp5', flags.link, matlab_bin);
     end
 end
 
