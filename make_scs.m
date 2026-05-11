@@ -10,10 +10,24 @@ addpath(matlab_dir);
 gpu = false; % compile the gpu version of SCS
 float = false; % using single precision (rather than double) floating points
 int = false; % use 32 bit integers for indexing
-% WARNING: OPENMP WITH MATLAB CAN CAUSE ERRORS AND CRASH, USE WITH CAUTION:
-% openmp parallelizes the matrix multiply for the indirect solver (using CG)
-% and some cone projections.
+% OpenMP parallelizes the matrix multiply for the indirect solver (using CG)
+% and some cone projections. When enabled, this script links the MEX
+% against MATLAB's own libiomp5 (the OpenMP runtime MATLAB already loads
+% for its internal parallelism) rather than the compiler's default
+% OpenMP runtime — see the ``if use_open_mp`` block below for the
+% rationale and the per-platform setup. Windows is not currently
+% supported with this approach; the build raises a clear error on
+% Windows if you flip this on.
 use_open_mp = false;
+
+% Allow non-interactive callers (CI, scripts) to override the build
+% knobs by setting environment variables before invoking this file.
+% Interactive users editing the file directly are unaffected: an unset
+% env var leaves the value at its literal default above.
+if strcmpi(getenv('SCS_BUILD_GPU'), 'true');    gpu = true;         end
+if strcmpi(getenv('SCS_USE_FLOAT'), 'true');    float = true;       end
+if strcmpi(getenv('SCS_USE_INT'), 'true');      int = true;         end
+if strcmpi(getenv('SCS_USE_OPENMP'), 'true');   use_open_mp = true; end
 
 flags.BLASLIB = '-lmwblas -lmwlapack';
 % MATLAB_MEX_FILE env variable sets blasint to ptrdiff_t
@@ -66,9 +80,50 @@ flags.CFLAGS = '';
 flags.COMPFLAGS = '';
 
 if use_open_mp
-    flags.link = [flags.link ' -lgomp'];
-    flags.CFLAGS = [flags.CFLAGS ' /openmp'];
-    flags.COMPFLAGS = [flags.COMPFLAGS ' -fopenmp'];
+    % MATLAB ships Intel's libiomp5 and already loads it into its
+    % process for internal parallelism. Linking a second OpenMP runtime
+    % into the MEX (libgomp from gcc/MinGW, vcomp from MSVC) is
+    % documented as undefined behavior — common failure modes are hangs,
+    % wrong numerics, and crashes on MEX teardown. The fix is to compile
+    % the MEX with the platform compiler's OpenMP frontend (so
+    % ``#pragma omp`` regions are processed) but link against MATLAB's
+    % own libiomp5 at link time. One OpenMP runtime in the process.
+    matlab_arch = lower(computer('arch'));
+    matlab_bin = fullfile(matlabroot, 'bin', matlab_arch);
+    if ispc
+        % MinGW's ``-fopenmp`` emits libgomp ABI calls (``GOMP_*``);
+        % MATLAB's bundled ``libiomp5md.dll`` on Windows does not export
+        % the ``GOMP_*`` compatibility aliases that the Linux build of
+        % libiomp5 does. MSVC's ``/openmp`` emits ``__vcomp*`` calls
+        % which libiomp5md also doesn't satisfy. Until we ship our own
+        % GOMP-aliased iomp5 (or change SCS to use a different threading
+        % primitive on Windows), fail loud rather than build a MEX that
+        % hangs or crashes inside MATLAB at runtime.
+        error('scs:openmpUnsupportedOnWindows', ...
+            ['OpenMP is not yet supported on Windows for the MATLAB ' ...
+             'MEX build (see comments in make_scs.m). Set ' ...
+             'use_open_mp = false to continue.']);
+    elseif ismac
+        % clang's OpenMP ABI is compatible with Intel's libiomp5 by
+        % design (clang's libomp and libiomp5 share the LLVM/Intel
+        % OpenMP runtime origin). ``-Xclang -fopenmp`` enables pragma
+        % processing in the frontend without triggering the driver's
+        % auto-link of libomp, so we can substitute MATLAB's libiomp5
+        % at link time.
+        flags.CFLAGS = [flags.CFLAGS ' -Xclang -fopenmp'];
+        flags.link = sprintf('%s -L"%s" -liomp5 -Wl,-rpath,%s', ...
+            flags.link, matlab_bin, matlab_bin);
+    else
+        % gcc: ``-fopenmp`` at compile so the pragmas are processed and
+        % the generated code emits ``GOMP_*`` runtime calls. At link
+        % time we deliberately do NOT pass ``-fopenmp`` (which would
+        % auto-link libgomp) — instead we link MATLAB's libiomp5,
+        % which exports ``GOMP_*`` aliases on Linux so the
+        % GCC-emitted calls resolve into it. One runtime, no conflict.
+        flags.CFLAGS = [flags.CFLAGS ' -fopenmp'];
+        flags.link = sprintf('%s -L"%s" -liomp5 -Wl,-rpath,%s', ...
+            flags.link, matlab_bin, matlab_bin);
+    end
 end
 
 % add c99 to handle qldl comments
