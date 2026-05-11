@@ -14,6 +14,18 @@ jobs:
       fail-fast: false
       matrix:
         os: [ubuntu-latest, macos-latest, windows-latest]
+        include:
+          # Install a C compiler MATLAB knows about on Windows. The
+          # ``windows-latest`` runner image is being migrated from VS 2022
+          # to VS 2026 (the latter is not on MATLAB R2022b's supported
+          # compilers list), so the previous "rely on whatever Visual
+          # Studio happens to be on the image" approach broke once the
+          # redirect started landing on May 11 2026. Install MinGW-w64
+          # via the MATLAB Package Manager instead — runner-image-
+          # independent and on MATLAB's supported list. macOS/Linux MEX
+          # uses the system clang/gcc and needs no extras.
+          - os: windows-latest
+            extra_products: "MATLAB_Support_for_MinGW-w64_C/C++_Compiler"
     runs-on: ${{ matrix.os }}
     steps:
       - uses: actions/checkout@v4
@@ -24,6 +36,7 @@ jobs:
         uses: matlab-actions/setup-matlab@v3
         with:
           release: R2022b
+          products: ${{ matrix.extra_products || '' }}
 
       - name: Compile MEX
         uses: matlab-actions/run-command@v3
