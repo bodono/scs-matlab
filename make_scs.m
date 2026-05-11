@@ -108,38 +108,56 @@ if use_open_mp
         % design (clang's libomp and libiomp5 share the LLVM/Intel
         % OpenMP runtime origin). ``-Xclang -fopenmp`` enables pragma
         % processing in the frontend without triggering the driver's
-        % auto-link of libomp, so we can substitute MATLAB's libiomp5
-        % at link time.
+        % auto-link of libomp.
         flags.CFLAGS = [flags.CFLAGS ' -Xclang -fopenmp'];
-        % NB: flags.link is appended raw into the ``eval(cmd)`` string
-        % in compile_*.m. Anything with a comma (e.g. ``-Wl,...``)
-        % cannot be placed here as a bare token — MATLAB's parser
-        % treats the commas as function-call argument separators
-        % and falls back to expression-style parsing, which then
-        % chokes on the unary minus prefixing the link flags
-        % ("Invalid use of operator"). The ``NAME="value"`` form does
-        % protect embedded commas, so we wrap any comma-bearing
-        % linker args in an ``LDFLAGS="$LDFLAGS ..."`` token. The
-        % comma-free ``-L<path> -liomp5`` pieces can stay as bare
-        % tokens. No ``-rpath`` is needed because MATLAB has already
-        % loaded its libiomp5 into the process before the MEX is
-        % dlopened — the dynamic loader matches by soname against
-        % currently-loaded libraries first, so the MEX resolves
-        % against MATLAB's libiomp5 without an rpath hint.
-        flags.link = sprintf('%s -L%s -liomp5', flags.link, matlab_bin);
     else
-        % gcc: ``-fopenmp`` at compile so the pragmas are processed and
-        % the generated code emits ``GOMP_*`` runtime calls. At link
-        % time we deliberately do NOT pass ``-fopenmp`` (which would
-        % auto-link libgomp) — instead we link MATLAB's libiomp5,
-        % which exports ``GOMP_*`` aliases on Linux so the
+        % gcc: ``-fopenmp`` at compile so the pragmas are processed
+        % and the generated code emits ``GOMP_*`` runtime calls. At
+        % link time we deliberately do NOT pass ``-fopenmp`` (which
+        % would auto-link libgomp) — we substitute MATLAB's libiomp5
+        % (which exports ``GOMP_*`` aliases on Linux) so the
         % GCC-emitted calls resolve into it. One runtime, no conflict.
         flags.CFLAGS = [flags.CFLAGS ' -fopenmp'];
-        % See the macOS branch above for why we don't add -Wl,-rpath
-        % (and why we can't, even if we wanted to, without changing
-        % the cmd assembly in compile_*.m).
-        flags.link = sprintf('%s -L%s -liomp5', flags.link, matlab_bin);
     end
+    % Pass libiomp5 by absolute path rather than ``-L<dir> -liomp5``.
+    % Two reasons we can't use the latter on this code path:
+    %   (1) ``flags.link`` is appended raw into the ``eval(cmd)``
+    %       string in compile_*.m. Tokens that contain commas (e.g.
+    %       ``-Wl,...``) are interpreted by MATLAB's parser as
+    %       function-style arg separators, which then fails on the
+    %       unary-minus prefixed link flags ("Invalid use of
+    %       operator"). That rules out ``-Wl,-rpath,...``.
+    %   (2) mex's mexopts template extracts ``-l*`` tokens into a
+    %       ``$LIBS`` placeholder and ``-L*`` tokens into a separate
+    %       ``$LIBPATHS`` placeholder, and emits LIBS *before*
+    %       LIBPATHS in the gcc invocation. ``-liomp5 ... -L<path>``
+    %       in that order means GNU ld hits the ``-l`` before it has
+    %       seen its search path and reports ``cannot find -liomp5``.
+    % An absolute path passed as a bare arg sidesteps both: mex sees
+    % a ``.so``/``.dylib`` file and forwards it to the linker as a
+    % direct input, no search-order dependency. We probe a small
+    % list of candidate filenames because MATLAB has historically
+    % shipped either ``libiomp5.so`` or ``libiomp5.so.5`` (versioned
+    % soname) depending on release.
+    if ismac
+        candidates = {'libiomp5.dylib'};
+    else
+        candidates = {'libiomp5.so', 'libiomp5.so.5'};
+    end
+    libiomp5_path = '';
+    for k = 1:numel(candidates)
+        candidate = fullfile(matlab_bin, candidates{k});
+        if isfile(candidate)
+            libiomp5_path = candidate;
+            break;
+        end
+    end
+    if isempty(libiomp5_path)
+        error('scs:libiomp5NotFound', ...
+            'libiomp5 not found under %s (tried: %s)', ...
+            matlab_bin, strjoin(candidates, ', '));
+    end
+    flags.link = sprintf('%s %s', flags.link, libiomp5_path);
 end
 
 % add c99 to handle qldl comments
