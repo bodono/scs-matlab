@@ -9,11 +9,22 @@ on:
 
 jobs:
   build-and-test:
-    name: Build & Test MEX (${{ matrix.os }})
+    name: Build & Test MEX (${{ matrix.os }}, openmp=${{ matrix.openmp }})
     strategy:
       fail-fast: false
       matrix:
         os: [ubuntu-latest, macos-latest, windows-latest]
+        # The serial (openmp=false) build is what gets packaged into the
+        # released .mltbx. The openmp=true build is a regression pin:
+        # it links MATLAB's libiomp5 instead of the compiler's default
+        # OpenMP runtime, and ``test/openmp_stress.m`` would diverge or
+        # crash if a future change broke that integration. Windows has
+        # no clean libiomp5 link path today (see make_scs.m), so it
+        # only builds serial.
+        openmp: [false, true]
+        exclude:
+          - os: windows-latest
+            openmp: true
         include:
           # Install a C compiler MATLAB knows about on Windows. The
           # ``windows-latest`` runner image is being migrated from VS 2022
@@ -25,8 +36,14 @@ jobs:
           # independent and on MATLAB's supported list. macOS/Linux MEX
           # uses the system clang/gcc and needs no extras.
           - os: windows-latest
+            openmp: false
             extra_products: "MATLAB_Support_for_MinGW-w64_C/C++_Compiler"
     runs-on: ${{ matrix.os }}
+    env:
+      # make_scs.m reads this env var to override its compile-time
+      # ``use_open_mp`` default. See the env-var override block at the
+      # top of make_scs.m.
+      SCS_USE_OPENMP: ${{ matrix.openmp }}
     steps:
       - uses: actions/checkout@v6
         with:
@@ -49,7 +66,11 @@ jobs:
           source-folder: ./
           select-by-folder: test
 
+      # Only the serial build is packaged into the released .mltbx.
+      # Skipping the upload for the openmp build keeps the package job
+      # downloading exactly one MEX per platform.
       - name: Upload MEX artifact
+        if: matrix.openmp == false
         uses: actions/upload-artifact@v7
         with:
           name: mex-${{ matrix.os }}
