@@ -135,27 +135,35 @@ if use_open_mp
     %       seen its search path and reports ``cannot find -liomp5``.
     % An absolute path passed as a bare arg sidesteps both: mex sees
     % a ``.so``/``.dylib`` file and forwards it to the linker as a
-    % direct input, no search-order dependency. We probe a small
-    % list of candidate filenames because MATLAB has historically
-    % shipped either ``libiomp5.so`` or ``libiomp5.so.5`` (versioned
-    % soname) depending on release.
+    % direct input, no search-order dependency.
+    %
+    % Different MATLAB releases (and the stripped down ``mpm``-
+    % installed MATLAB on the GH runners in particular) ship
+    % libiomp5 under different filenames AND different subdirectories
+    % of ``matlabroot``. Common locations: ``bin/<arch>/`` (full
+    % install), ``sys/os/<arch>/`` (older releases), ``extern/lib/
+    % <arch>/`` (toolbox-style). Probe with a recursive find rather
+    % than hardcoding paths.
     if ismac
-        candidates = {'libiomp5.dylib'};
+        find_cmd = sprintf( ...
+            'find %s -name ''libiomp5*.dylib'' -print -quit 2>/dev/null', ...
+            matlabroot);
     else
-        candidates = {'libiomp5.so', 'libiomp5.so.5'};
+        find_cmd = sprintf( ...
+            'find %s -name ''libiomp5*'' -print -quit 2>/dev/null', ...
+            matlabroot);
     end
-    libiomp5_path = '';
-    for k = 1:numel(candidates)
-        candidate = fullfile(matlab_bin, candidates{k});
-        if isfile(candidate)
-            libiomp5_path = candidate;
-            break;
-        end
-    end
-    if isempty(libiomp5_path)
+    [status, found] = system(find_cmd);
+    libiomp5_path = strtrim(found);
+    if status ~= 0 || isempty(libiomp5_path)
+        % Surface what IS present in the standard ``bin/<arch>``
+        % directory so the diagnostic is actionable.
+        listing = dir(matlab_bin);
+        names = sort({listing.name});
         error('scs:libiomp5NotFound', ...
-            'libiomp5 not found under %s (tried: %s)', ...
-            matlab_bin, strjoin(candidates, ', '));
+            ['libiomp5 not found anywhere under %s.\n' ...
+             '%s contains: %s'], ...
+            matlabroot, matlab_bin, strjoin(names, ', '));
     end
     flags.link = sprintf('%s %s', flags.link, libiomp5_path);
 end
