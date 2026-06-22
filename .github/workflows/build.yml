@@ -45,7 +45,7 @@ jobs:
       # top of make_scs.m.
       SCS_USE_OPENMP: ${{ matrix.openmp }}
     steps:
-      - uses: actions/checkout@v6
+      - uses: actions/checkout@v7
         with:
           submodules: 'recursive'
 
@@ -84,7 +84,7 @@ jobs:
     needs: build-and-test
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v6
+      - uses: actions/checkout@v7
         with:
           submodules: 'recursive'
 
