@@ -19,6 +19,12 @@ classdef matlab_ldl < matlab.unittest.TestCase
             data.c = -data.A' * y_feas;
 
             pars.verbose = 0;
+            % Solve tightly so the cross-backend comparison tolerances are
+            % well-posed: at the default eps (1e-4) each backend is only
+            % accurate to ~1e-4, so two valid solutions can differ by more
+            % than the 1e-4 AbsTol used below.
+            pars.eps_abs = 1e-9;
+            pars.eps_rel = 1e-9;
             [x1, y1, ~, info1] = scs(data, K, pars);
             testCase.verifyEqual(info1.status, 'solved')
 
@@ -47,6 +53,12 @@ classdef matlab_ldl < matlab.unittest.TestCase
             data.b = data.A * x_feas + s_feas;
 
             pars.verbose = 0;
+            % Solve tightly so the cross-backend comparison tolerances are
+            % well-posed: at the default eps (1e-4) each backend is only
+            % accurate to ~1e-4, so two valid solutions can differ by more
+            % than the 1e-4 AbsTol used below.
+            pars.eps_abs = 1e-9;
+            pars.eps_rel = 1e-9;
             [x1, y1, ~, info1] = scs(data, K, pars);
             testCase.verifyEqual(info1.status, 'solved')
 
@@ -79,6 +91,12 @@ classdef matlab_ldl < matlab.unittest.TestCase
             data.c = -data.A' * y_feas;
 
             pars.verbose = 0;
+            % Solve tightly so the cross-backend comparison tolerances are
+            % well-posed: at the default eps (1e-4) each backend is only
+            % accurate to ~1e-4, so two valid solutions can differ by more
+            % than the 1e-4 AbsTol used below.
+            pars.eps_abs = 1e-9;
+            pars.eps_rel = 1e-9;
             [x1, y1, ~, info1] = scs(data, K, pars);
             testCase.verifyEqual(info1.status, 'solved')
 
@@ -104,8 +122,12 @@ classdef matlab_ldl < matlab.unittest.TestCase
             y_feas = ones(m, 1);
             data.c = -data.A' * y_feas;
 
-            pars_default = struct('verbose', 0);
-            pars_qdldl = struct('verbose', 0, 'use_qdldl', true);
+            % Tight eps so the 1e-4 cross-backend AbsTol below is
+            % well-posed (see the note in test_lp_cross_validate).
+            pars_default = struct('verbose', 0, ...
+                'eps_abs', 1e-9, 'eps_rel', 1e-9);
+            pars_qdldl = struct('verbose', 0, 'use_qdldl', true, ...
+                'eps_abs', 1e-9, 'eps_rel', 1e-9);
 
             work_default = scs_init(data, K, pars_default);
             work_qdldl = scs_init(data, K, pars_qdldl);
@@ -156,6 +178,12 @@ classdef matlab_ldl < matlab.unittest.TestCase
             data.c = -data.A' * y_feas;
 
             pars.verbose = 0;
+            % Solve tightly so the cross-backend comparison tolerances are
+            % well-posed: at the default eps (1e-4) each backend is only
+            % accurate to ~1e-4, so two valid solutions can differ by more
+            % than the 1e-4 AbsTol used below.
+            pars.eps_abs = 1e-9;
+            pars.eps_rel = 1e-9;
             [x1, y1, ~, info1] = scs(data, K, pars);
             testCase.verifyEqual(info1.status, 'solved')
 

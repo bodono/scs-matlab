@@ -1,5 +1,5 @@
 function [x, y, s, info] = scs(data, K, pars)
-% scs 3.2.5
+% scs 3.3.0
 % for version call: scs_version()
 
 if nargin < 3
