@@ -78,6 +78,15 @@ settings.dense = true;           % dense Cholesky (for dense A)
 settings.gpu = true;             % GPU solver
 ```
 
+The GPU MEX is optional and is not included in the precompiled toolbox. To
+build it from source, install CUDA under `/usr/local/cuda`, enable the GPU
+build before running `make_scs`, and then select it with `settings.gpu`:
+
+```matlab
+setenv('SCS_BUILD_GPU', 'true');
+make_scs
+```
+
 ### Cones
 
 The `cone` struct fields correspond to the cone types. See the
