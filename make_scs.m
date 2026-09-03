@@ -12,12 +12,11 @@ float = false; % using single precision (rather than double) floating points
 int = false; % use 32 bit integers for indexing
 % OpenMP parallelizes the matrix multiply for the indirect solver (using CG)
 % and some cone projections. When enabled, this script links the MEX
-% against MATLAB's own libiomp5 (the OpenMP runtime MATLAB already loads
-% for its internal parallelism) rather than the compiler's default
-% OpenMP runtime — see the ``if use_open_mp`` block below for the
-% rationale and the per-platform setup. Windows is not currently
-% supported with this approach; the build raises a clear error on
-% Windows if you flip this on.
+% against MATLAB's own OpenMP runtime (libiomp5 on Intel/Linux and
+% libomp on Apple Silicon) rather than the compiler's default runtime —
+% see the ``if use_open_mp`` block below for the rationale and the
+% per-platform setup. Windows is not currently supported with this
+% approach; the build raises a clear error on Windows if you flip this on.
 use_open_mp = false;
 
 % Allow non-interactive callers (CI, scripts) to override the build
@@ -80,14 +79,14 @@ flags.CFLAGS = '';
 flags.COMPFLAGS = '';
 
 if use_open_mp
-    % MATLAB ships Intel's libiomp5 and already loads it into its
-    % process for internal parallelism. Linking a second OpenMP runtime
-    % into the MEX (libgomp from gcc/MinGW, vcomp from MSVC) is
-    % documented as undefined behavior — common failure modes are hangs,
-    % wrong numerics, and crashes on MEX teardown. The fix is to compile
-    % the MEX with the platform compiler's OpenMP frontend (so
-    % ``#pragma omp`` regions are processed) but link against MATLAB's
-    % own libiomp5 at link time. One OpenMP runtime in the process.
+    % MATLAB already loads an OpenMP runtime for its internal parallelism:
+    % libiomp5 on Intel/Linux releases and LLVM's libomp on Apple Silicon.
+    % Linking a second runtime into the MEX (libgomp from gcc/MinGW,
+    % vcomp from MSVC) is documented as undefined behavior — common
+    % failure modes are hangs, wrong numerics, and crashes on MEX teardown.
+    % Compile with the platform compiler's OpenMP frontend (so ``#pragma
+    % omp`` regions are processed) but link MATLAB's runtime. One OpenMP
+    % runtime in the process.
     matlab_arch = lower(computer('arch'));
     matlab_bin = fullfile(matlabroot, 'bin', matlab_arch);
     if ispc
@@ -119,7 +118,8 @@ if use_open_mp
         % GCC-emitted calls resolve into it. One runtime, no conflict.
         flags.CFLAGS = [flags.CFLAGS ' -fopenmp'];
     end
-    % Pass libiomp5 by absolute path rather than ``-L<dir> -liomp5``.
+    % Pass MATLAB's OpenMP runtime by absolute path rather than
+    % ``-L<dir> -liomp5`` (or ``-lomp``).
     % Two reasons we can't use the latter on this code path:
     %   (1) ``flags.link`` is appended raw into the ``eval(cmd)``
     %       string in compile_*.m. Tokens that contain commas (e.g.
@@ -137,35 +137,41 @@ if use_open_mp
     % a ``.so``/``.dylib`` file and forwards it to the linker as a
     % direct input, no search-order dependency.
     %
-    % Different MATLAB releases (and the stripped down ``mpm``-
-    % installed MATLAB on the GH runners in particular) ship
-    % libiomp5 under different filenames AND different subdirectories
-    % of ``matlabroot``. Common locations: ``bin/<arch>/`` (full
-    % install), ``sys/os/<arch>/`` (older releases), ``extern/lib/
-    % <arch>/`` (toolbox-style). Probe with a recursive find rather
-    % than hardcoding paths.
+    % Different MATLAB releases (and the stripped down ``mpm``-installed
+    % MATLAB on the GH runners in particular) ship the runtime under
+    % different filenames and subdirectories of ``matlabroot``. Apple
+    % Silicon MATLAB uses ``libomp.dylib``; Intel macOS and Linux releases
+    % use a ``libiomp5`` name. Common locations include ``bin/<arch>/``,
+    % ``sys/os/<arch>/``, and ``extern/lib/<arch>/``. Probe recursively
+    % rather than hardcoding a location.
     if ismac
-        find_cmd = sprintf( ...
-            'find %s -name ''libiomp5*.dylib'' -print -quit 2>/dev/null', ...
-            matlabroot);
+        runtime_patterns = {'libiomp5*.dylib', 'libomp.dylib'};
     else
-        find_cmd = sprintf( ...
-            'find %s -name ''libiomp5*'' -print -quit 2>/dev/null', ...
-            matlabroot);
+        runtime_patterns = {'libiomp5*'};
     end
-    [status, found] = system(find_cmd);
-    libiomp5_path = strtrim(found);
-    if status ~= 0 || isempty(libiomp5_path)
+
+    openmp_runtime_path = '';
+    for pattern = runtime_patterns
+        find_cmd = sprintf( ...
+            'find "%s" -name ''%s'' -print -quit 2>/dev/null', ...
+            matlabroot, pattern{1});
+        [status, found] = system(find_cmd);
+        if status == 0 && ~isempty(strtrim(found))
+            openmp_runtime_path = strtrim(found);
+            break;
+        end
+    end
+    if isempty(openmp_runtime_path)
         % Surface what IS present in the standard ``bin/<arch>``
         % directory so the diagnostic is actionable.
         listing = dir(matlab_bin);
         names = sort({listing.name});
-        error('scs:libiomp5NotFound', ...
-            ['libiomp5 not found anywhere under %s.\n' ...
+        error('scs:openmpRuntimeNotFound', ...
+            ['MATLAB OpenMP runtime not found anywhere under %s.\n' ...
              '%s contains: %s'], ...
             matlabroot, matlab_bin, strjoin(names, ', '));
     end
-    flags.link = sprintf('%s %s', flags.link, libiomp5_path);
+    flags.link = sprintf('%s %s', flags.link, openmp_runtime_path);
 end
 
 % add c99 to handle qldl comments
