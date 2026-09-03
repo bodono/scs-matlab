@@ -7,7 +7,7 @@ matlab_dir = fullfile(scs_root, 'matlab');
 addpath(src_dir);
 addpath(matlab_dir);
 
-gpu = false; % compile the gpu version of SCS
+gpu = false; % compile the cuDSS GPU direct solver (requires CUDA + cuDSS)
 float = false; % using single precision (rather than double) floating points
 int = false; % use 32 bit integers for indexing
 % OpenMP parallelizes the matrix multiply for the indirect solver (using CG)
@@ -185,7 +185,7 @@ compile_dense(flags, common_scs);
 compile_matlab_direct(flags, common_scs);
 
 if gpu
-    compile_gpu(flags, common_scs);
+    compile_cudss(flags, common_scs);
 end
 
 % compile scs_version

@@ -246,6 +246,71 @@ jobs:
             assert(strcmp(info.status, 'solved'), info.status);
             assert(isfinite(x) && isfinite(y) && isfinite(s));
 
+  build-cudss:
+    # Compile/link gate for the cuDSS GPU backend: hosted runners have no
+    # GPU, so the solver cannot run here, but this catches broken source
+    # lists, integer-width regressions and link-flag rot. The MEX must
+    # compile and link against real CUDA + cuDSS libraries and load in
+    # MATLAB. Not a release gate: the toolbox does not ship it.
+    name: Build cuDSS MEX (compile-only)
+    runs-on: ubuntu-24.04
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          submodules: recursive
+
+      - name: Install CUDA toolkit (runtime + headers)
+        run: |
+          wget -q https://developer.download.nvidia.com/compute/cuda/repos/ubuntu2404/x86_64/cuda-keyring_1.1-1_all.deb
+          sudo dpkg -i cuda-keyring_1.1-1_all.deb
+          sudo apt-get update
+          sudo apt-get install -y cuda-cudart-dev-12-6 cuda-crt-12-6 libcublas-dev-12-6 cuda-toolkit-12-6-config-common cuda-toolkit-12-config-common cuda-toolkit-config-common
+          echo "SCS_CUDA_PATH=/usr/local/cuda-12.6" >> "$GITHUB_ENV"
+
+      - name: Install cuDSS
+        run: |
+          wget -q https://developer.download.nvidia.com/compute/cudss/redist/libcudss/linux-x86_64/libcudss-linux-x86_64-0.7.1.4_cuda12-archive.tar.xz
+          mkdir -p "$HOME/cudss"
+          tar -xJf libcudss-linux-x86_64-0.7.1.4_cuda12-archive.tar.xz \
+            -C "$HOME/cudss" --strip-components=1
+          echo "SCS_CUDSS_PATH=$HOME/cudss" >> "$GITHUB_ENV"
+
+      - name: Set up MATLAB
+        uses: matlab-actions/setup-matlab@v3
+
+      - name: Compile the cuDSS MEX
+        uses: matlab-actions/run-command@v3
+        with:
+          command: >
+            setenv('SCS_BUILD_GPU', 'true');
+            make_scs;
+            assert(isfile(fullfile('matlab', ['scs_cudss.' mexext])), 'scs_cudss mex was not produced')
+
+      - name: Verify the dependency closure resolves without LD_LIBRARY_PATH
+        run: |
+          set -euo pipefail
+          MEX=matlab/scs_cudss.mexa64
+          # cuBLAS must be a direct dependency: libcudss needs it but carries
+          # no RUNPATH of its own
+          readelf -d "$MEX" | grep NEEDED | grep -q libcublas
+          # MATLAB's own libraries resolve only inside a MATLAB process
+          unset LD_LIBRARY_PATH
+          if ldd "$MEX" | grep "not found" | grep -vE "libmw|libmx|libmex|libmat|libut"; then
+            echo "unresolved non-MATLAB dependency"
+            exit 1
+          fi
+
+      - name: Verify the MEX loads in MATLAB
+        uses: matlab-actions/run-command@v3
+        with:
+          # calling with no arguments must reach the MEX's own usage error,
+          # not the loader's "Invalid MEX-file"
+          command: |
+            addpath('matlab');
+            try, scs_cudss(); error('mex returned without arguments'); catch e, end
+            assert(~contains(e.message, 'Invalid MEX-file'), e.message);
+
   release:
     name: Create Release
     needs: test-toolbox

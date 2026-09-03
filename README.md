@@ -102,7 +102,19 @@ the hood). Alternatives:
 settings.use_qdldl = true;      % bundled QDLDL sparse direct solver
 settings.use_indirect = true;    % conjugate gradient (iterative)
 settings.dense = true;           % dense Cholesky (for dense A)
-settings.gpu = true;             % GPU solver
+settings.gpu = true;             % cuDSS GPU direct solver (source build)
+```
+
+The GPU backend is the NVIDIA cuDSS direct solver (the GPU indirect
+solver was removed in favor of it). It is optional, Linux-only in
+practice, and not included in the precompiled toolbox. To build it from
+source, install the CUDA toolkit and cuDSS (set `SCS_CUDA_PATH` /
+`SCS_CUDSS_PATH` if not in `/usr/local/cuda` and `/usr/local/cudss`),
+then:
+
+```matlab
+setenv('SCS_BUILD_GPU', 'true');
+make_scs
 ```
 
 ### Cones

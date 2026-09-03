@@ -18,17 +18,7 @@ end
 
 data = scs_prepare_data(data);
 
-if isfield(pars, 'use_indirect') && pars.use_indirect
-    work.backend = 'scs_indirect';
-elseif isfield(pars, 'gpu') && pars.gpu
-    work.backend = 'scs_gpu';
-elseif isfield(pars, 'dense') && pars.dense
-    work.backend = 'scs_dense';
-elseif isfield(pars, 'use_qdldl') && pars.use_qdldl
-    work.backend = 'scs_direct';
-else
-    work.backend = 'scs_matlab_direct';
-end
+work.backend = scs_backend(pars);
 
 
 work.id = feval(work.backend, 'init', data, K, pars);
