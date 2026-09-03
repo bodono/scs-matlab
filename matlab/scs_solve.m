@@ -10,7 +10,7 @@ function [x, y, s, info] = scs_solve(work, warm)
 %   See also: scs_init, scs_update, scs_finish
 
 if nargin < 2
-    [x, y, s, info] = feval(work.backend, 'solve');
+    [x, y, s, info] = feval(work.backend, 'solve', work.id);
 else
-    [x, y, s, info] = feval(work.backend, 'solve', warm);
+    [x, y, s, info] = feval(work.backend, 'solve', work.id, warm);
 end
