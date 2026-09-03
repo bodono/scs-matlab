@@ -295,7 +295,11 @@ static scs_int parse_settings(const mxArray *settings_mex,
   GET_SETTING_INT(normalize);
   GET_SETTING_INT(acceleration_lookback);
   GET_SETTING_INT(acceleration_interval);
+  GET_SETTING_INT(acceleration_type_1);
+  GET_SETTING_FLOAT(acceleration_regularization);
+  GET_SETTING_FLOAT(acceleration_relaxation);
   GET_SETTING_INT(adaptive_scale);
+  GET_SETTING_INT(adaptive_diag_scale);
   GET_SETTING_FLOAT(time_limit_secs);
 
 #undef GET_SETTING_FLOAT
