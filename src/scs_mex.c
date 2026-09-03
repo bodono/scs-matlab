@@ -844,6 +844,15 @@ void mexFunction(int nlhs, mxArray *plhs[], int nrhs, const mxArray *prhs[]) {
       }
       entry = ws_lookup(prhs[1], cmd);
       if (nrhs >= 3 && !mxIsEmpty(prhs[2])) {
+        /* the native update copies entry->m doubles from the pointer */
+        if (validate_dense_real_vector(prhs[2], "b") < 0 ||
+            mxGetNumberOfElements(prhs[2]) != (size_t)entry->m) {
+          scs_free(cmd);
+          mexErrMsgIdAndTxt(
+              "scs:updateInvalidB",
+              "b must be a dense, real double vector with %ld elements.",
+              (long)entry->m);
+        }
 #ifdef SFLOAT
         b_new = cast_to_scs_float_arr(mxGetPr(prhs[2]), entry->m);
         if (!b_new) {
@@ -855,6 +864,17 @@ void mexFunction(int nlhs, mxArray *plhs[], int nrhs, const mxArray *prhs[]) {
 #endif
       }
       if (nrhs >= 4 && !mxIsEmpty(prhs[3])) {
+        if (validate_dense_real_vector(prhs[3], "c") < 0 ||
+            mxGetNumberOfElements(prhs[3]) != (size_t)entry->n) {
+#ifdef SFLOAT
+          if (b_new) scs_free(b_new);
+#endif
+          scs_free(cmd);
+          mexErrMsgIdAndTxt(
+              "scs:updateInvalidC",
+              "c must be a dense, real double vector with %ld elements.",
+              (long)entry->n);
+        }
 #ifdef SFLOAT
         c_new = cast_to_scs_float_arr(mxGetPr(prhs[3]), entry->n);
         if (!c_new) {
