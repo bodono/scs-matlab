@@ -7,6 +7,7 @@ classdef settings_3_3 < matlab.unittest.TestCase
 
     properties (TestParameter)
         solver = {'default', 'qdldl', 'indirect'}
+        regularization = {1e-10, -1e-10}
     end
 
     methods(TestMethodSetup)
@@ -19,12 +20,12 @@ classdef settings_3_3 < matlab.unittest.TestCase
     end
 
     methods (Test)
-        function test_new_settings_are_accepted(testCase, solver)
+        function test_new_settings_are_accepted(testCase, solver, regularization)
             pars = settings_3_3.solver_pars(solver);
             pars.verbose = 0;
             pars.adaptive_diag_scale = 0;
             pars.acceleration_type_1 = 0;
-            pars.acceleration_regularization = 1e-10;
+            pars.acceleration_regularization = regularization;
             pars.acceleration_relaxation = 0.9;
 
             [~, ~, ~, info] = scs(testCase.data, testCase.cones, pars);
