@@ -41,8 +41,12 @@ function [x, y, s, info] = scs_direct(data, cone, params)
 %   normalize              : heuristic data rescaling (0 or 1)
 %   scale                  : initial dual scaling factor
 %   adaptive_scale         : whether to adaptively update scale (0 or 1)
+%   adaptive_diag_scale    : dynamic per-row diagonal rescaling (0 or 1)
 %   acceleration_lookback  : memory for Anderson acceleration (0 to disable)
 %   acceleration_interval  : interval to apply acceleration
+%   acceleration_type_1    : use type-I (nonzero) or type-II (0) acceleration
+%   acceleration_regularization : AA regularization (negative = pinned absolute value, 0 = off)
+%   acceleration_relaxation : acceleration relaxation factor in [0, 2]
 %   time_limit_secs        : time limit in seconds
 %   write_data_filename    : if set, dump raw problem data to file
 %   log_csv_filename       : if set, log progress to csv file
