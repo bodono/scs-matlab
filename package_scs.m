@@ -15,7 +15,7 @@ function package_scs()
 
     % 2. Configure Metadata
     opts.ToolboxName = 'SCS';
-    opts.ToolboxVersion = '3.3.0';
+    opts.ToolboxVersion = '3.3.1';
     opts.AuthorName = 'Brendan O''Donoghue';
     opts.AuthorEmail = 'bodonoghue85@gmail.com';
     opts.Summary = 'Splitting Conic Solver for MATLAB';
