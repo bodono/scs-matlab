@@ -14,9 +14,9 @@ concurrency:
   cancel-in-progress: true
 
 env:
-  # Linux release artifacts must stay loadable on the glibc 2.31 baseline
-  # documented in README.md.
-  SCS_LINUX_GLIBC_CEILING: '2.31'
+  # Minimum supported runtime; the ABI check allows no newer symbol imports.
+  # Review when changing Linux/MATLAB support or runners (README checklist).
+  SCS_LINUX_GLIBC_BASELINE: '2.31'
 
 jobs:
   build-and-test:
@@ -112,8 +112,8 @@ jobs:
         if: runner.os == 'Linux'
         run: |
           newest=$(objdump -T matlab/*.mexa64 | grep -oE 'GLIBC_[0-9.]+' | sort -uV | tail -1)
-          echo "newest glibc import: $newest (ceiling GLIBC_$SCS_LINUX_GLIBC_CEILING)"
-          printf '%s\nGLIBC_%s\n' "$newest" "$SCS_LINUX_GLIBC_CEILING" | sort -VC
+          echo "newest glibc import: $newest (runtime baseline glibc $SCS_LINUX_GLIBC_BASELINE+)"
+          printf '%s\nGLIBC_%s\n' "$newest" "$SCS_LINUX_GLIBC_BASELINE" | sort -VC
 
       - name: Test
         uses: matlab-actions/run-tests@v3
