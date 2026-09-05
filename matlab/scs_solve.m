@@ -1,4 +1,4 @@
-function [x, y, s, info] = scs_solve(work, warm)
+function varargout = scs_solve(work, warm)
 % SCS_SOLVE  Solve using an initialized SCS workspace.
 %
 %   [x, y, s, info] = scs_solve(work)
@@ -9,8 +9,10 @@ function [x, y, s, info] = scs_solve(work, warm)
 %
 %   See also: scs_init, scs_update, scs_finish
 
+nargoutchk(0, 4);
+
 if nargin < 2
-    [x, y, s, info] = feval(work.backend, 'solve', work.id);
+    [varargout{1:nargout}] = feval(work.backend, 'solve', work.id);
 else
-    [x, y, s, info] = feval(work.backend, 'solve', work.id, warm);
+    [varargout{1:nargout}] = feval(work.backend, 'solve', work.id, warm);
 end
