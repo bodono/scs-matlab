@@ -107,22 +107,6 @@ void set_output_field(mxArray **pout, scs_float *out, scs_int len) {
   }
 }
 
-/* MATLAB sizes plhs by nlhs (minimum one for ans); writing past that
- * corrupts the caller. Build all four outputs (set_output_field must run
- * regardless to release the solver's buffers), hand over only what was
- * requested, and destroy the surplus. */
-static void assign_outputs(int nlhs, mxArray *plhs[], mxArray *out[4]) {
-  int i;
-  int want = nlhs < 1 ? 1 : nlhs;
-  for (i = 0; i < 4; i++) {
-    if (i < want) {
-      plhs[i] = out[i];
-    } else if (out[i]) {
-      mxDestroyArray(out[i]);
-    }
-  }
-}
-
 /* Reject sparse/complex/non-double arrays and non-vector shapes. MATLAB
  * sparse doubles pass mxIsDouble but expose only stored entries through
  * mxGetPr while reporting full numel (out-of-bounds reads), and mxGetPr
@@ -697,6 +681,25 @@ static void write_info(mxArray **plhs3, const ScsInfo *info) {
 #undef SET_INFO_FIELD
 }
 
+/* MATLAB reserves at least one output slot for ans. Copy only requested
+ * vectors and release every solver buffer, including unrequested ones. */
+static void write_outputs(int nlhs, mxArray *plhs[], const ScsSolution *sol,
+                          scs_int n, scs_int m, const ScsInfo *info) {
+  scs_float *vectors[3] = {sol->x, sol->y, sol->s};
+  scs_int lengths[3] = {n, m, m};
+  int i, want = nlhs < 1 ? 1 : nlhs;
+  for (i = 0; i < 3; i++) {
+    if (i < want) {
+      set_output_field(&plhs[i], vectors[i], lengths[i]);
+    } else {
+      scs_free(vectors[i]);
+    }
+  }
+  if (want >= 4) {
+    write_info(&plhs[3], info);
+  }
+}
+
 /* ======================== MEX entry point ======================== */
 
 void mexFunction(int nlhs, mxArray *plhs[], int nrhs, const mxArray *prhs[]) {
@@ -839,14 +842,7 @@ void mexFunction(int nlhs, mxArray *plhs[], int nrhs, const mxArray *prhs[]) {
 
       scs_solve(ws_work, &sol, &info, warm_start);
 
-      {
-        mxArray *out[4] = {SCS_NULL, SCS_NULL, SCS_NULL, SCS_NULL};
-        set_output_field(&out[0], sol.x, ws_n);
-        set_output_field(&out[1], sol.y, ws_m);
-        set_output_field(&out[2], sol.s, ws_m);
-        write_info(&out[3], &info);
-        assign_outputs(nlhs, plhs, out);
-      }
+      write_outputs(nlhs, plhs, &sol, ws_n, ws_m, &info);
 
       scs_free(cmd);
       return;
@@ -916,14 +912,7 @@ void mexFunction(int nlhs, mxArray *plhs[], int nrhs, const mxArray *prhs[]) {
 
     scs(d, k, stgs, &sol, &info);
 
-    {
-      mxArray *out[4] = {SCS_NULL, SCS_NULL, SCS_NULL, SCS_NULL};
-      set_output_field(&out[0], sol.x, d->n);
-      set_output_field(&out[1], sol.y, d->m);
-      set_output_field(&out[2], sol.s, d->m);
-      write_info(&out[3], &info);
-      assign_outputs(nlhs, plhs, out);
-    }
+    write_outputs(nlhs, plhs, &sol, d->n, d->m, &info);
 
     free_mex(d, k, stgs);
   }
