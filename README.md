@@ -18,6 +18,32 @@ The easiest way to install SCS is to download the pre-compiled MATLAB Toolbox fi
 This version comes with pre-compiled binaries for Windows, Linux, and both
 Intel and Apple Silicon Macs, so you don't need a C compiler.
 
+#### Linux binary compatibility
+
+The pre-compiled Linux MEX files support x86-64 systems with glibc 2.31 or
+newer. This is the minimum supported runtime, not an upper limit on the
+user's glibc version. CI enforces this baseline by rejecting any binary that
+requires a symbol newer than `GLIBC_2.31` before it is packaged.
+
+The binaries are built with MATLAB R2022b on a pinned Ubuntu 22.04 runner.
+The symbol check preserves compatibility with Ubuntu 20.04 while using
+a [GitHub-hosted runner that is still supported](https://docs.github.com/en/actions/reference/runners/github-hosted-runners).
+
+Systems older than glibc 2.31 can build SCS from source on the target machine.
+
+#### Linux release compatibility checklist
+
+When changing the minimum supported Linux distribution or MATLAB release,
+or upgrading the build runner:
+
+- Review the oldest supported runtime and its glibc version. The runner pin
+  is a separate choice and can change while retaining the same ABI baseline.
+- If dropping older-system support, update `SCS_LINUX_GLIBC_BASELINE` in
+  `.github/workflows/build.yml`, the minimum above, and the release notes together.
+- Keep the ABI check enabled; raise its baseline deliberately rather than
+  removing it. Rebuild and load-test the release on the selected baseline
+  and a current supported Linux system.
+
 ### 2. Build from Source
 If you are on an unsupported platform or prefer to build from source:
 1. Clone the repository recursively:

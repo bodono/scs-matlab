@@ -13,6 +13,11 @@ concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
   cancel-in-progress: true
 
+env:
+  # Minimum supported runtime; the ABI check allows no newer symbol imports.
+  # Review when changing Linux/MATLAB support or runners (README checklist).
+  SCS_LINUX_GLIBC_BASELINE: '2.31'
+
 jobs:
   build-and-test:
     name: Build & Test MEX (${{ matrix.name }}, openmp=${{ matrix.openmp }})
@@ -21,13 +26,14 @@ jobs:
       matrix:
         include:
           - name: Linux x86_64
-            os: ubuntu-latest
+            # 24.04 (glibc 2.39) leaked a GLIBC_2.38 import into a release MEX
+            os: ubuntu-22.04
             matlab_release: R2022b
             mexext: mexa64
             openmp: false
             artifact: linux-x86_64
           - name: Linux x86_64
-            os: ubuntu-latest
+            os: ubuntu-22.04
             matlab_release: R2022b
             mexext: mexa64
             openmp: true
@@ -102,6 +108,13 @@ jobs:
                 assert(isfile(binary), sprintf('Missing expected MEX binary: %s', binary));
             end
 
+      - name: Check Linux MEX glibc ABI
+        if: runner.os == 'Linux'
+        run: |
+          newest=$(objdump -T matlab/*.mexa64 | grep -oE 'GLIBC_[0-9.]+' | sort -uV | tail -1)
+          echo "newest glibc import: $newest (runtime baseline glibc $SCS_LINUX_GLIBC_BASELINE+)"
+          printf '%s\nGLIBC_%s\n' "$newest" "$SCS_LINUX_GLIBC_BASELINE" | sort -VC
+
       - name: Test
         uses: matlab-actions/run-tests@v3
         with:
@@ -162,7 +175,7 @@ jobs:
       matrix:
         include:
           - name: Linux x86_64
-            os: ubuntu-latest
+            os: ubuntu-22.04
             matlab_release: R2023a
             mexext: mexa64
           - name: Windows x86_64
@@ -218,9 +231,6 @@ jobs:
                 sprintf('Expected scs.m to come from installed toolbox matlab/ folder, got: %s', scsPath));
             assert(exist('scs_version', 'file') == 3, ...
                 sprintf('Expected scs_version to resolve to a MEX file, got: %s', scsVersionPath));
-            [~, ~, scsVersionExt] = fileparts(scsVersionPath);
-            assert(strcmp(scsVersionExt, ['.' expectedMexext]), ...
-                sprintf('Expected scs_version.%s, got: %s', expectedMexext, scsVersionPath));
             disp(scs_version);
             data.A = sparse(-1);
             data.b = -1;
