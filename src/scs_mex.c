@@ -13,17 +13,85 @@
 void free_mex(ScsData *d, ScsCone *k, ScsSettings *stgs);
 
 /* ======================== Workspace state ======================== */
-static ScsWork *ws_work = SCS_NULL;
-static scs_int ws_n = 0;
-static scs_int ws_m = 0;
+typedef struct ScsMexWorkspace {
+  uint64_t id;
+  ScsWork *work;
+  scs_int n;
+  scs_int m;
+  struct ScsMexWorkspace *next;
+} ScsMexWorkspace;
 
-static void ws_cleanup(void) {
-  if (ws_work) {
-    scs_finish(ws_work);
-    ws_work = SCS_NULL;
-    ws_n = 0;
-    ws_m = 0;
+static ScsMexWorkspace *ws_head = SCS_NULL;
+static uint64_t ws_next_id = 1;
+
+static void ws_cleanup_all(void) {
+  ScsMexWorkspace *entry = ws_head;
+  while (entry) {
+    ScsMexWorkspace *next = entry->next;
+    scs_finish(entry->work);
+    scs_free(entry);
+    mexUnlock();
+    entry = next;
   }
+  ws_head = SCS_NULL;
+}
+
+static ScsMexWorkspace *ws_find(uint64_t id) {
+  ScsMexWorkspace *entry;
+  for (entry = ws_head; entry; entry = entry->next) {
+    if (entry->id == id) return entry;
+  }
+  return SCS_NULL;
+}
+
+static ScsMexWorkspace *ws_register(ScsWork *work, scs_int n, scs_int m) {
+  ScsMexWorkspace *entry = (ScsMexWorkspace *)scs_malloc(sizeof(ScsMexWorkspace));
+  if (!entry) return SCS_NULL;
+  /* Handles count up within one load of the MEX. A live workspace holds
+   * mexLock, so the MEX cannot be cleared underneath it; a handle kept
+   * across an explicit clear of the MEX is invalid, like any other stale
+   * handle. */
+  entry->id = ws_next_id++;
+  entry->work = work;
+  entry->n = n;
+  entry->m = m;
+  entry->next = ws_head;
+  ws_head = entry;
+  /* Keep static registry state alive until the matching workspace is freed. */
+  mexLock();
+  return entry;
+}
+
+static void ws_remove(ScsMexWorkspace *target) {
+  ScsMexWorkspace **link = &ws_head;
+  while (*link && *link != target) link = &((*link)->next);
+  if (*link) {
+    *link = target->next;
+    scs_finish(target->work);
+    scs_free(target);
+    mexUnlock();
+  }
+}
+
+/* The workspace a handle argument names; raises (after releasing the
+ * command string) if it is not a live handle. */
+static ScsMexWorkspace *ws_lookup(const mxArray *value, char *cmd) {
+  ScsMexWorkspace *entry = SCS_NULL;
+  if (value && mxIsUint64(value) && mxGetNumberOfElements(value) == 1) {
+    entry = ws_find(*((const uint64_t *)mxGetData(value)));
+  }
+  if (!entry) {
+    scs_free(cmd);
+    mexErrMsgIdAndTxt("scs:invalidWorkspace",
+                      "Invalid or expired SCS workspace handle.");
+  }
+  return entry;
+}
+
+static mxArray *workspace_id_to_mex(uint64_t id) {
+  mxArray *value = mxCreateNumericMatrix(1, 1, mxUINT64_CLASS, mxREAL);
+  *((uint64_t *)mxGetData(value)) = id;
+  return value;
 }
 
 /* ======================== Helper functions ======================== */
@@ -713,13 +781,16 @@ void mexFunction(int nlhs, mxArray *plhs[], int nrhs, const mxArray *prhs[]) {
     char *cmd = mxArrayToString(prhs[0]);
 
     if (strcmp(cmd, "init") == 0) {
-      /* scs_xxx('init', data, cone, settings) */
+      /* id = scs_xxx('init', data, cone, settings) */
       ScsData *d;
       ScsCone *k;
       ScsSettings *stgs;
+      ScsWork *work;
+      ScsMexWorkspace *entry;
       if (nrhs != 4) {
         scs_free(cmd);
-        mexErrMsgTxt("Usage: scs_xxx('init', data, cone, settings)");
+        mexErrMsgIdAndTxt("scs:usage",
+                          "Usage: id = scs_xxx('init', data, cone, settings)");
       }
       if (!mxIsStruct(prhs[1]) || !mxIsStruct(prhs[2])) {
         scs_free(cmd);
@@ -729,7 +800,6 @@ void mexFunction(int nlhs, mxArray *plhs[], int nrhs, const mxArray *prhs[]) {
         scs_free(cmd);
         mexErrMsgTxt("Input argument 4 (settings) must be a struct.");
       }
-      ws_cleanup(); /* free any existing workspace */
       if (parse_data(prhs[1], &d) < 0) {
         scs_free(cmd);
         mexErrMsgIdAndTxt("scs:invalidData", "Error parsing data.");
@@ -745,55 +815,58 @@ void mexFunction(int nlhs, mxArray *plhs[], int nrhs, const mxArray *prhs[]) {
         mexErrMsgIdAndTxt("scs:invalidSettings", "Error parsing settings.");
       }
 
-      ws_n = d->n;
-      ws_m = d->m;
-      ws_work = scs_init(d, k, stgs);
+      work = scs_init(d, k, stgs);
+      entry = work ? ws_register(work, d->n, d->m) : SCS_NULL;
 
       free_mex(d, k, stgs);
 
-      if (!ws_work) {
-        ws_n = 0;
-        ws_m = 0;
+      if (!entry) {
+        if (work) scs_finish(work);
+        scs_free(cmd);
         mexErrMsgTxt("SCS init failed.");
       }
-      mexAtExit(ws_cleanup);
+      mexAtExit(ws_cleanup_all); /* idempotent: only the last registration is kept */
+      plhs[0] = workspace_id_to_mex(entry->id);
       scs_free(cmd);
       return;
     }
 
     if (strcmp(cmd, "update") == 0) {
-      /* scs_xxx('update', b_new, c_new)
+      /* scs_xxx('update', id, b_new, c_new)
        * Either argument can be [] to leave unchanged. */
       scs_float *b_new = SCS_NULL;
       scs_float *c_new = SCS_NULL;
-      if (!ws_work) {
+      ScsMexWorkspace *entry;
+      if (nrhs < 2 || nrhs > 4) {
         scs_free(cmd);
-        mexErrMsgTxt("No workspace. Call scs_init first.");
+        mexErrMsgIdAndTxt("scs:usage",
+                          "Usage: scs_xxx('update', id[, b_new[, c_new]])");
       }
-      if (nrhs >= 2 && !mxIsEmpty(prhs[1])) {
+      entry = ws_lookup(prhs[1], cmd);
+      if (nrhs >= 3 && !mxIsEmpty(prhs[2])) {
 #ifdef SFLOAT
-        b_new = cast_to_scs_float_arr(mxGetPr(prhs[1]), ws_m);
+        b_new = cast_to_scs_float_arr(mxGetPr(prhs[2]), entry->m);
         if (!b_new) {
           scs_free(cmd);
           mexErrMsgTxt("Memory allocation failed for b_new.");
         }
 #else
-        b_new = (scs_float *)mxGetPr(prhs[1]);
+        b_new = (scs_float *)mxGetPr(prhs[2]);
 #endif
       }
-      if (nrhs >= 3 && !mxIsEmpty(prhs[2])) {
+      if (nrhs >= 4 && !mxIsEmpty(prhs[3])) {
 #ifdef SFLOAT
-        c_new = cast_to_scs_float_arr(mxGetPr(prhs[2]), ws_n);
+        c_new = cast_to_scs_float_arr(mxGetPr(prhs[3]), entry->n);
         if (!c_new) {
           if (b_new) scs_free(b_new);
           scs_free(cmd);
           mexErrMsgTxt("Memory allocation failed for c_new.");
         }
 #else
-        c_new = (scs_float *)mxGetPr(prhs[2]);
+        c_new = (scs_float *)mxGetPr(prhs[3]);
 #endif
       }
-      scs_update(ws_work, b_new, c_new);
+      scs_update(entry->work, b_new, c_new);
 #ifdef SFLOAT
       if (b_new) scs_free(b_new);
       if (c_new) scs_free(c_new);
@@ -803,34 +876,38 @@ void mexFunction(int nlhs, mxArray *plhs[], int nrhs, const mxArray *prhs[]) {
     }
 
     if (strcmp(cmd, "solve") == 0) {
-      /* [x,y,s,info] = scs_xxx('solve')
-       * [x,y,s,info] = scs_xxx('solve', warm_start_struct) */
+      /* [x,y,s,info] = scs_xxx('solve', id)
+       * [x,y,s,info] = scs_xxx('solve', id, warm_start_struct) */
       ScsSolution sol = {0};
       ScsInfo info;
       scs_int warm_start = 0;
-      if (!ws_work) {
+      ScsMexWorkspace *entry;
+      if (nrhs < 2 || nrhs > 3) {
         scs_free(cmd);
-        mexErrMsgTxt("No workspace. Call scs_init first.");
+        mexErrMsgIdAndTxt(
+            "scs:usage",
+            "Usage: [x,y,s,info] = scs_xxx('solve', id[, warm_start])");
       }
-      if (nrhs >= 2 && !mxIsEmpty(prhs[1])) {
-        const mxArray *ws_data = prhs[1];
+      entry = ws_lookup(prhs[1], cmd);
+      if (nrhs >= 3 && !mxIsEmpty(prhs[2])) {
+        const mxArray *ws_data = prhs[2];
         if (!mxIsStruct(ws_data)) {
           scs_free(cmd);
           mexErrMsgTxt("Warm start argument must be a struct.");
         }
         warm_start =
-            parse_warm_start(mxGetField(ws_data, 0, "x"), &(sol.x), ws_n);
+            parse_warm_start(mxGetField(ws_data, 0, "x"), &(sol.x), entry->n);
         warm_start |=
-            parse_warm_start(mxGetField(ws_data, 0, "y"), &(sol.y), ws_m);
+            parse_warm_start(mxGetField(ws_data, 0, "y"), &(sol.y), entry->m);
         warm_start |=
-            parse_warm_start(mxGetField(ws_data, 0, "s"), &(sol.s), ws_m);
+            parse_warm_start(mxGetField(ws_data, 0, "s"), &(sol.s), entry->m);
       }
       if (!sol.x)
-        sol.x = (scs_float *)scs_calloc(ws_n, sizeof(scs_float));
+        sol.x = (scs_float *)scs_calloc(entry->n, sizeof(scs_float));
       if (!sol.y)
-        sol.y = (scs_float *)scs_calloc(ws_m, sizeof(scs_float));
+        sol.y = (scs_float *)scs_calloc(entry->m, sizeof(scs_float));
       if (!sol.s)
-        sol.s = (scs_float *)scs_calloc(ws_m, sizeof(scs_float));
+        sol.s = (scs_float *)scs_calloc(entry->m, sizeof(scs_float));
 
       if (!sol.x || !sol.y || !sol.s) {
         if (sol.x) scs_free(sol.x);
@@ -840,16 +917,22 @@ void mexFunction(int nlhs, mxArray *plhs[], int nrhs, const mxArray *prhs[]) {
         mexErrMsgTxt("Memory allocation failed for solution vectors.");
       }
 
-      scs_solve(ws_work, &sol, &info, warm_start);
+      scs_solve(entry->work, &sol, &info, warm_start);
 
-      write_outputs(nlhs, plhs, &sol, ws_n, ws_m, &info);
+      write_outputs(nlhs, plhs, &sol, entry->n, entry->m, &info);
 
       scs_free(cmd);
       return;
     }
 
     if (strcmp(cmd, "finish") == 0) {
-      ws_cleanup();
+      ScsMexWorkspace *entry;
+      if (nrhs != 2) {
+        scs_free(cmd);
+        mexErrMsgIdAndTxt("scs:usage", "Usage: scs_xxx('finish', id)");
+      }
+      entry = ws_lookup(prhs[1], cmd);
+      ws_remove(entry);
       scs_free(cmd);
       return;
     }

@@ -30,7 +30,5 @@ else
     work.backend = 'scs_matlab_direct';
 end
 
-work.n = size(data.A, 2);
-work.m = size(data.A, 1);
 
-feval(work.backend, 'init', data, K, pars);
+work.id = feval(work.backend, 'init', data, K, pars);

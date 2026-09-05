@@ -8,4 +8,4 @@ function scs_finish(work)
 %
 %   See also: scs_init, scs_solve, scs_update
 
-feval(work.backend, 'finish');
+feval(work.backend, 'finish', work.id);

@@ -21,4 +21,4 @@ if size(c, 2) > 1
     c = c(:);
 end
 
-feval(work.backend, 'update', b, c);
+feval(work.backend, 'update', work.id, b, c);
