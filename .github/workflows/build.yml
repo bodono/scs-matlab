@@ -2,42 +2,70 @@ name: Build
 
 on:
   push:
+    branches: [master]
+    tags: ['*']
   pull_request:
   schedule:
     - cron: '0 6 * * 1' # Every Monday at 6:00 UTC
   workflow_dispatch:
 
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
 jobs:
   build-and-test:
-    name: Build & Test MEX (${{ matrix.os }}, openmp=${{ matrix.openmp }})
+    name: Build & Test MEX (${{ matrix.name }}, openmp=${{ matrix.openmp }})
     strategy:
       fail-fast: false
       matrix:
-        os: [ubuntu-latest, macos-latest, windows-latest]
+        include:
+          - name: Linux x86_64
+            os: ubuntu-latest
+            matlab_release: R2022b
+            mexext: mexa64
+            openmp: false
+            artifact: linux-x86_64
+          - name: Linux x86_64
+            os: ubuntu-latest
+            matlab_release: R2022b
+            mexext: mexa64
+            openmp: true
+            artifact: linux-x86_64-openmp
+          - name: Windows x86_64
+            os: windows-latest
+            matlab_release: R2022b
+            mexext: mexw64
+            openmp: false
+            artifact: windows-x86_64
+            extra_products: "MATLAB_Support_for_MinGW-w64_C/C++_Compiler"
+          - name: macOS Apple Silicon
+            os: macos-15
+            matlab_release: R2023b
+            mexext: mexmaca64
+            openmp: false
+            artifact: macos-arm64
+          - name: macOS Apple Silicon
+            os: macos-15
+            matlab_release: R2023b
+            mexext: mexmaca64
+            openmp: true
+            artifact: macos-arm64-openmp
+          - name: macOS Intel
+            os: macos-15-intel
+            matlab_release: R2022b
+            mexext: mexmaci64
+            openmp: false
+            artifact: macos-x86_64
         # The serial (openmp=false) build is what gets packaged into the
         # released .mltbx. The openmp=true build is a regression pin:
-        # it links MATLAB's libiomp5 instead of the compiler's default
-        # OpenMP runtime, and ``test/openmp_stress.m`` would diverge or
+        # it links MATLAB's bundled OpenMP runtime instead of the compiler's
+        # default runtime, and ``test/openmp_stress.m`` would diverge or
         # crash if a future change broke that integration. Windows has
-        # no clean libiomp5 link path today (see make_scs.m), so it
-        # only builds serial.
-        openmp: [false, true]
-        exclude:
-          - os: windows-latest
-            openmp: true
-        include:
-          # Install a C compiler MATLAB knows about on Windows. The
-          # ``windows-latest`` runner image is being migrated from VS 2022
-          # to VS 2026 (the latter is not on MATLAB R2022b's supported
-          # compilers list), so the previous "rely on whatever Visual
-          # Studio happens to be on the image" approach broke once the
-          # redirect started landing on May 11 2026. Install MinGW-w64
-          # via the MATLAB Package Manager instead — runner-image-
-          # independent and on MATLAB's supported list. macOS/Linux MEX
-          # uses the system clang/gcc and needs no extras.
-          - os: windows-latest
-            openmp: false
-            extra_products: "MATLAB_Support_for_MinGW-w64_C/C++_Compiler"
+        # no clean MATLAB-runtime link path today (see make_scs.m), so it
+        # only builds serial. The Intel Mac build is retained for users of
+        # MATLAB R2025b and earlier; OpenMP coverage runs natively on Apple
+        # Silicon, which is the current macOS MATLAB architecture.
     runs-on: ${{ matrix.os }}
     env:
       # make_scs.m reads this env var to override its compile-time
@@ -52,13 +80,27 @@ jobs:
       - name: Set up MATLAB
         uses: matlab-actions/setup-matlab@v3
         with:
-          release: R2022b
+          release: ${{ matrix.matlab_release }}
           products: ${{ matrix.extra_products || '' }}
 
       - name: Compile MEX
         uses: matlab-actions/run-command@v3
         with:
           command: make_scs
+
+      - name: Verify MEX suffix
+        uses: matlab-actions/run-command@v3
+        with:
+          command: |
+            expectedMexext = '${{ matrix.mexext }}';
+            assert(strcmp(mexext, expectedMexext), ...
+                sprintf('Expected MATLAB mexext %s, got %s', expectedMexext, mexext));
+            binaries = {'scs_direct', 'scs_indirect', 'scs_dense', ...
+                        'scs_matlab_direct', 'scs_version'};
+            for i = 1:numel(binaries)
+                binary = fullfile('matlab', [binaries{i} '.' expectedMexext]);
+                assert(isfile(binary), sprintf('Missing expected MEX binary: %s', binary));
+            end
 
       - name: Test
         uses: matlab-actions/run-tests@v3
@@ -73,7 +115,7 @@ jobs:
         if: matrix.openmp == false
         uses: actions/upload-artifact@v7
         with:
-          name: mex-${{ matrix.os }}
+          name: mex-${{ matrix.artifact }}
           path: |
             matlab/*.mex*
             !*.prj
@@ -97,7 +139,9 @@ jobs:
       - name: Set up MATLAB
         uses: matlab-actions/setup-matlab@v3
         with:
-          release: R2023a
+          # R2026a uses the documented, architecture-neutral
+          # SupportedPlatforms.Mac toolbox metadata field.
+          release: R2026a
 
       - name: Package Toolbox
         uses: matlab-actions/run-command@v3
@@ -111,12 +155,28 @@ jobs:
           path: SCS.mltbx
 
   test-toolbox:
-    name: Test Toolbox (${{ matrix.os }})
+    name: Test Toolbox (${{ matrix.name }})
     needs: package
     strategy:
       fail-fast: false
       matrix:
-        os: [ubuntu-latest, macos-latest, windows-latest]
+        include:
+          - name: Linux x86_64
+            os: ubuntu-latest
+            matlab_release: R2023a
+            mexext: mexa64
+          - name: Windows x86_64
+            os: windows-latest
+            matlab_release: R2023a
+            mexext: mexw64
+          - name: macOS Apple Silicon
+            os: macos-15
+            matlab_release: R2023b
+            mexext: mexmaca64
+          - name: macOS Intel
+            os: macos-15-intel
+            matlab_release: R2023a
+            mexext: mexmaci64
     runs-on: ${{ matrix.os }}
     steps:
       - name: Download Toolbox
@@ -128,12 +188,15 @@ jobs:
       - name: Set up MATLAB
         uses: matlab-actions/setup-matlab@v3
         with:
-          release: R2023a
+          release: ${{ matrix.matlab_release }}
 
       - name: Smoke Test
         uses: matlab-actions/run-command@v3
         with:
           command: |
+            expectedMexext = '${{ matrix.mexext }}';
+            assert(strcmp(mexext, expectedMexext), ...
+                sprintf('Expected MATLAB mexext %s, got %s', expectedMexext, mexext));
             toolboxes = matlab.addons.toolbox.installedToolboxes;
             if ~isempty(toolboxes)
                 matches = strcmp({toolboxes.Guid}, '9fe2fe4d-165e-4d2d-8511-91bcef1583b0');
@@ -141,7 +204,11 @@ jobs:
                     matlab.addons.toolbox.uninstallToolbox(toolboxes(i));
                 end
             end
+            lastwarn('');
             installedToolbox = matlab.addons.toolbox.installToolbox('SCS.mltbx');
+            [installWarning, installWarningId] = lastwarn;
+            assert(isempty(installWarning), ...
+                sprintf('Toolbox installation warned (%s): %s', installWarningId, installWarning));
             assert(strcmp(installedToolbox.Guid, '9fe2fe4d-165e-4d2d-8511-91bcef1583b0'));
             scsPath = which('scs');
             scsVersionPath = which('scs_version');
@@ -151,6 +218,9 @@ jobs:
                 sprintf('Expected scs.m to come from installed toolbox matlab/ folder, got: %s', scsPath));
             assert(exist('scs_version', 'file') == 3, ...
                 sprintf('Expected scs_version to resolve to a MEX file, got: %s', scsVersionPath));
+            [~, ~, scsVersionExt] = fileparts(scsVersionPath);
+            assert(strcmp(scsVersionExt, ['.' expectedMexext]), ...
+                sprintf('Expected scs_version.%s, got: %s', expectedMexext, scsVersionPath));
             disp(scs_version);
             data.A = sparse(-1);
             data.b = -1;

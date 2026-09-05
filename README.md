@@ -15,7 +15,8 @@ The easiest way to install SCS is to download the pre-compiled MATLAB Toolbox fi
 2. Download the latest `SCS.mltbx` file.
 3. Open the file in MATLAB (or double-click it) to install.
 
-This version comes with pre-compiled binaries for Windows, Linux, and Apple Silicon Macs, so you don't need a C compiler.
+This version comes with pre-compiled binaries for Windows, Linux, and both
+Intel and Apple Silicon Macs, so you don't need a C compiler.
 
 ### 2. Build from Source
 If you are on an unsupported platform or prefer to build from source:
