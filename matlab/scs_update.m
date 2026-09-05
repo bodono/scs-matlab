@@ -14,11 +14,4 @@ if nargin < 3
     c = [];
 end
 
-if size(b, 2) > 1
-    b = b(:);
-end
-if size(c, 2) > 1
-    c = c(:);
-end
-
 feval(work.backend, 'update', work.id, b, c);
