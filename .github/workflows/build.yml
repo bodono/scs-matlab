@@ -18,6 +18,9 @@ env:
   # Review when changing Linux/MATLAB support or runners (README checklist).
   SCS_LINUX_GLIBC_BASELINE: '2.31'
 
+# Retry only checkout/setup, where transient network and installer failures
+# have occurred. A failed retry still fails the job, as do all compilation,
+# ABI and test failures.
 jobs:
   build-and-test:
     name: Build & Test MEX (${{ matrix.name }}, openmp=${{ matrix.openmp }})
@@ -79,15 +82,49 @@ jobs:
       # top of make_scs.m.
       SCS_USE_OPENMP: ${{ matrix.openmp }}
     steps:
-      - uses: actions/checkout@v7
+      - name: Check out source
+        id: checkout
+        continue-on-error: true
+        uses: actions/checkout@v7
+        with:
+          submodules: 'recursive'
+
+      - name: Wait before retrying checkout
+        if: steps.checkout.outcome == 'failure'
+        shell: bash
+        run: |
+          echo "::warning::Checkout failed; retrying once in 30 seconds."
+          sleep 30
+
+      - name: Retry checkout
+        if: steps.checkout.outcome == 'failure'
+        uses: actions/checkout@v7
         with:
           submodules: 'recursive'
 
       - name: Set up MATLAB
+        id: setup-matlab
+        continue-on-error: true
         uses: matlab-actions/setup-matlab@v3
         with:
           release: ${{ matrix.matlab_release }}
           products: ${{ matrix.extra_products || '' }}
+          cache: true
+
+      - name: Wait before retrying MATLAB setup
+        if: steps.setup-matlab.outcome == 'failure'
+        shell: bash
+        run: |
+          echo "::warning::MATLAB setup failed; retrying once in 30 seconds."
+          sleep 30
+
+      - name: Retry MATLAB setup
+        if: steps.setup-matlab.outcome == 'failure'
+        uses: matlab-actions/setup-matlab@v3
+        with:
+          release: ${{ matrix.matlab_release }}
+          products: ${{ matrix.extra_products || '' }}
+          cache: true
 
       - name: Compile MEX
         uses: matlab-actions/run-command@v3
@@ -139,7 +176,23 @@ jobs:
     needs: build-and-test
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v7
+      - name: Check out source
+        id: checkout
+        continue-on-error: true
+        uses: actions/checkout@v7
+        with:
+          submodules: 'recursive'
+
+      - name: Wait before retrying checkout
+        if: steps.checkout.outcome == 'failure'
+        shell: bash
+        run: |
+          echo "::warning::Checkout failed; retrying once in 30 seconds."
+          sleep 30
+
+      - name: Retry checkout
+        if: steps.checkout.outcome == 'failure'
+        uses: actions/checkout@v7
         with:
           submodules: 'recursive'
 
@@ -150,11 +203,28 @@ jobs:
           path: matlab/
 
       - name: Set up MATLAB
+        id: setup-matlab
+        continue-on-error: true
         uses: matlab-actions/setup-matlab@v3
         with:
           # R2026a uses the documented, architecture-neutral
           # SupportedPlatforms.Mac toolbox metadata field.
           release: R2026a
+          cache: true
+
+      - name: Wait before retrying MATLAB setup
+        if: steps.setup-matlab.outcome == 'failure'
+        shell: bash
+        run: |
+          echo "::warning::MATLAB setup failed; retrying once in 30 seconds."
+          sleep 30
+
+      - name: Retry MATLAB setup
+        if: steps.setup-matlab.outcome == 'failure'
+        uses: matlab-actions/setup-matlab@v3
+        with:
+          release: R2026a
+          cache: true
 
       - name: Package Toolbox
         uses: matlab-actions/run-command@v3
@@ -199,9 +269,26 @@ jobs:
           path: ./
 
       - name: Set up MATLAB
+        id: setup-matlab
+        continue-on-error: true
         uses: matlab-actions/setup-matlab@v3
         with:
           release: ${{ matrix.matlab_release }}
+          cache: true
+
+      - name: Wait before retrying MATLAB setup
+        if: steps.setup-matlab.outcome == 'failure'
+        shell: bash
+        run: |
+          echo "::warning::MATLAB setup failed; retrying once in 30 seconds."
+          sleep 30
+
+      - name: Retry MATLAB setup
+        if: steps.setup-matlab.outcome == 'failure'
+        uses: matlab-actions/setup-matlab@v3
+        with:
+          release: ${{ matrix.matlab_release }}
+          cache: true
 
       - name: Smoke Test
         uses: matlab-actions/run-command@v3
@@ -256,9 +343,25 @@ jobs:
     runs-on: ubuntu-24.04
     timeout-minutes: 45
     steps:
-      - uses: actions/checkout@v7
+      - name: Check out source
+        id: checkout
+        continue-on-error: true
+        uses: actions/checkout@v7
         with:
-          submodules: recursive
+          submodules: 'recursive'
+
+      - name: Wait before retrying checkout
+        if: steps.checkout.outcome == 'failure'
+        shell: bash
+        run: |
+          echo "::warning::Checkout failed; retrying once in 30 seconds."
+          sleep 30
+
+      - name: Retry checkout
+        if: steps.checkout.outcome == 'failure'
+        uses: actions/checkout@v7
+        with:
+          submodules: 'recursive'
 
       - name: Install CUDA toolkit (runtime + headers)
         run: |
@@ -277,7 +380,24 @@ jobs:
           echo "SCS_CUDSS_PATH=$HOME/cudss" >> "$GITHUB_ENV"
 
       - name: Set up MATLAB
+        id: setup-matlab
+        continue-on-error: true
         uses: matlab-actions/setup-matlab@v3
+        with:
+          cache: true
+
+      - name: Wait before retrying MATLAB setup
+        if: steps.setup-matlab.outcome == 'failure'
+        shell: bash
+        run: |
+          echo "::warning::MATLAB setup failed; retrying once in 30 seconds."
+          sleep 30
+
+      - name: Retry MATLAB setup
+        if: steps.setup-matlab.outcome == 'failure'
+        uses: matlab-actions/setup-matlab@v3
+        with:
+          cache: true
 
       - name: Compile the cuDSS MEX
         uses: matlab-actions/run-command@v3
