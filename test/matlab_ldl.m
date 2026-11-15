@@ -180,10 +180,12 @@ classdef matlab_ldl < matlab.unittest.TestCase
             pars.verbose = 0;
             % Solve tightly enough that the 1e-3 AbsTol of the comparison
             % below is well-posed: at the default eps (1e-4) each backend is
-            % only accurate to ~1e-4. 1e-6 leaves three orders of margin. With
-            % the SCS 3.3.2 core, 1e-9 was out of reach of the QDLDL solve of
-            % this problem on Linux and Windows CI within the default
-            % max_iters (macOS solved it).
+            % only accurate to ~1e-4; 1e-6 is well below the comparison
+            % tolerance. The test used 1e-9 until SCS 3.3.2: with the 3.3.2
+            % core the QDLDL solve of this problem ran to max_iters on Linux
+            % and Windows CI, with x off by 2e-2 (Linux) and 4e-2 (Windows),
+            % while macOS and the 3.3.1 core solved it. That is tracked for
+            % the next SCS release.
             pars.eps_abs = 1e-6;
             pars.eps_rel = 1e-6;
             [x1, y1, ~, info1] = scs(data, K, pars);
