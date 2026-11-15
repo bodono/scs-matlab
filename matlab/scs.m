@@ -1,5 +1,5 @@
 function varargout = scs(data, K, pars)
-% scs 3.3.1
+% scs 3.3.2
 % for version call: scs_version()
 
 nargoutchk(0, 4);
