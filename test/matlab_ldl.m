@@ -178,18 +178,24 @@ classdef matlab_ldl < matlab.unittest.TestCase
             data.c = -data.A' * y_feas;
 
             pars.verbose = 0;
-            % Solve tightly so the cross-backend comparison tolerances are
-            % well-posed: at the default eps (1e-4) each backend is only
-            % accurate to ~1e-4, so two valid solutions can differ by more
-            % than the 1e-4 AbsTol used below.
-            pars.eps_abs = 1e-9;
-            pars.eps_rel = 1e-9;
+            % Solve tightly enough that the 1e-3 AbsTol of the comparison
+            % below is well-posed: at the default eps (1e-4) each backend is
+            % only accurate to ~1e-4. 1e-6 leaves three orders of margin. With
+            % the SCS 3.3.2 core, 1e-9 was out of reach of the QDLDL solve of
+            % this problem on Linux and Windows CI within the default
+            % max_iters (macOS solved it).
+            pars.eps_abs = 1e-6;
+            pars.eps_rel = 1e-6;
             [x1, y1, ~, info1] = scs(data, K, pars);
-            testCase.verifyEqual(info1.status, 'solved')
+            testCase.verifyEqual(info1.status, 'solved', ...
+                sprintf('matlab_ldl: %d iterations, res_pri %g, res_dual %g, gap %g', ...
+                        info1.iter, info1.res_pri, info1.res_dual, info1.gap))
 
             pars.use_qdldl = true;
             [x2, y2, ~, info2] = scs(data, K, pars);
-            testCase.verifyEqual(info2.status, 'solved')
+            testCase.verifyEqual(info2.status, 'solved', ...
+                sprintf('qdldl: %d iterations, res_pri %g, res_dual %g, gap %g', ...
+                        info2.iter, info2.res_pri, info2.res_dual, info2.gap))
 
             testCase.verifyEqual(x1, x2, 'AbsTol', 1e-3, ...
                 'matlab_ldl and qdldl should match on mixed cone problems')
